@@ -39,7 +39,6 @@ class StockMovement(models.Model):
     MOVEMENT_TYPES = {
         'IN': 'Stock In (Purchase/Restock)',
         'OUT': 'Stock Out (Sale/Dispatch)',
-        'ADJ': 'Stock Adjustment(Adjustment/Correction)'
     }
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="movements")

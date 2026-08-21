@@ -1,17 +1,14 @@
-from django.shortcuts import render
-from rest_framework import generics, status
-from rest_framework.response import Response
-from . import models
+from rest_framework import generics
 from .models import Category, Supplier, Product, StockMovement
+from rest_framework.exceptions import ValidationError
 from .serializers import (
     CategorySerializer, 
     SupplierSerializer, 
     ProductSerializer, 
     StockMovementSerializer, 
 )
-from datetime import datetime
-from django.db.models import F, ExpressionWrapper, FloatField, Q, Sum, Count, Avg
-from django.db.models.functions import Coalesce
+from django.db.models import F, Sum, Count, Avg
+from django.db import transaction
 
 # Create your views here.
 
@@ -46,18 +43,23 @@ class StockMovementCreateView(generics.CreateAPIView):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
 
+    @transaction.atomic()
     def perform_create(self, serializer):
-        instance = serializer.save()
+        product_id = serializer.validated_data['product'].id
+        product = Product.objects.select_for_update().get(id=product_id)
+        quantity = serializer.validated_data['quantity']
+        movement_type = serializer.validated_data['movement_type']
         # update stock
-        if instance.movement_type == 'IN':
-            instance.product.quantity_in_stock += instance.quantity
-        elif instance.movement_type == 'OUT':
-            instance.product.quantity_in_stock -= instance.quantity
-        elif instance.movement_type == 'ADJ':
-            instance.product.quantity_in_stock = instance.quantity
-        instance.product.save()
-
-        return instance
+        if movement_type == 'IN':
+            product.quantity_in_stock = F("quantity_in_stock") + quantity
+            
+        elif movement_type == 'OUT':
+            if product.quantity_in_stock < quantity:
+                raise ValidationError({"quantity": "Not enough stock available for this movement."})
+            product.quantity_in_stock = F("quantity_in_stock") - quantity
+            
+        product.save(update_fields=['quantity_in_stock', 'updated_at'])
+        serializer.save()
 
 
 class StockMovementListView(generics.ListAPIView):
