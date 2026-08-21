@@ -7,7 +7,8 @@ from .serializers import (
     ProductSerializer, 
     StockMovementSerializer, 
 )
-from django.db.models import F, Sum, Count, Avg
+from django.db.models.functions import Coalesce
+from django.db.models import F, Sum, Count, Avg, ExpressionWrapper
 from django.db import transaction
 
 # Create your views here.
@@ -58,7 +59,7 @@ class StockMovementCreateView(generics.CreateAPIView):
                 raise ValidationError({"quantity": "Not enough stock available for this movement."})
             product.quantity_in_stock = F("quantity_in_stock") - quantity
             
-        product.save(update_fields=['quantity_in_stock', 'updated_at'])
+        product.save(update_fields=['quantity_in_stock'])
         serializer.save()
 
 
@@ -81,13 +82,12 @@ class StockTurnoverAnalyticsView(generics.ListAPIView):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        # We look at products currently in stock
-        # We calculate turnover by comparing remaining stock to the reorder triggers
+        
         return Product.objects.filter(
             quantity_in_stock__gt=0
         ).annotate(
             # Simple math: lower stock relative to reorder level means higher turnover
-            turnover_rate=(F('reorder_level') * 1.0) / F('quantity_in_stock')
+            turnover_rate=Coalesce(ExpressionWrapper(F('reorder_level') * 1.0) / F('quantity_in_stock'))
         ).filter(
             turnover_rate__gt=0
         ).order_by('-turnover_rate')
