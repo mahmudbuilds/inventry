@@ -1,0 +1,15 @@
+# Local Virtual Environment
+venv/
+.venv/
+
+.agents/
+.claude/
+
+# Python compiled files
+*.pyc
+__pycache__/
+
+# Django databases and secrets
+*.sqlite3
+db.sqlite3
+.env
