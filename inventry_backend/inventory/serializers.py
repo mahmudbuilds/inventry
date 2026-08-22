@@ -24,7 +24,8 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = '__all__'
-
+        
+    read_only_fields = ('quantity_in_stock',)
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
@@ -32,4 +33,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockMovement
         fields = '__all__'
+        
+        
+    read_only_fields = ('performed_by',)
 

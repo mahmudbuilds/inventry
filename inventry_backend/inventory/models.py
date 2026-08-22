@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 
 # Create your models here.
 
@@ -36,14 +37,14 @@ class Product(models.Model):
     
 
 class StockMovement(models.Model):
-    MOVEMENT_TYPES = {
-        'IN': 'Stock In (Purchase/Restock)',
-        'OUT': 'Stock Out (Sale/Dispatch)',
-    }
+    MOVEMENT_TYPES = (
+        ('IN', 'Stock In (Purchase/Restock)'),
+        ('OUT', 'Stock Out (Sale/Dispatch)'),
+    )
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="movements")
     movement_type = models.CharField(max_length=10, choices=MOVEMENT_TYPES)
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(0)])
     timestamp = models.DateTimeField(auto_now_add=True)
     performed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     notes = models.TextField(blank=True)

@@ -8,7 +8,7 @@ from .serializers import (
     StockMovementSerializer, 
 )
 from django.db.models.functions import Coalesce
-from django.db.models import F, Sum, Count, Avg, ExpressionWrapper
+from django.db.models import F, Sum, Count, Avg, ExpressionWrapper, FloatField, Q, Value
 from django.db import transaction
 
 # Create your views here.
@@ -67,6 +67,8 @@ class StockMovementListView(generics.ListAPIView):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
     
+    
+    
 
 class StockMovementDetailView(generics.RetrieveAPIView):
     queryset = StockMovement.objects.all()
@@ -86,8 +88,18 @@ class StockTurnoverAnalyticsView(generics.ListAPIView):
         return Product.objects.filter(
             quantity_in_stock__gt=0
         ).annotate(
-            # Simple math: lower stock relative to reorder level means higher turnover
-            turnover_rate=Coalesce(ExpressionWrapper(F('reorder_level') * 1.0) / F('quantity_in_stock'))
+            outbound_quantity=Coalesce(
+                Sum(
+                    'movements__quantity',
+                    filter=Q(movements__movement_type='OUT'),
+                ),
+                Value(0),
+            ),
+        ).annotate(
+            turnover_rate=ExpressionWrapper(
+                F('outbound_quantity') * 1.0 / F('quantity_in_stock'),
+                output_field=FloatField(),
+            )
         ).filter(
             turnover_rate__gt=0
         ).order_by('-turnover_rate')
