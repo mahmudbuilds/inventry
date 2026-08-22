@@ -28,4 +28,6 @@ urlpatterns = [
     path('analytics/movement-summary/', views.MovementSummaryView.as_view(), name='movement-summary'),
     path('analytics/low-stock/<int:category_id>/', views.LowStockByCategoryView.as_view(), name='low-stock-category'),
     path('analytics/low-stock/<int:category_id>/<int:supplier_id>/', views.LowStockByCategoryAndSupplierView.as_view(), name='low-stock-category-supplier'),
+    
+    
 ]

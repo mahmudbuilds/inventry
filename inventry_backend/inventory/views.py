@@ -1,4 +1,5 @@
 from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
 from .models import Category, Supplier, Product, StockMovement
 from rest_framework.exceptions import ValidationError
 from .serializers import (
@@ -16,33 +17,39 @@ from django.db import transaction
 class CategoryListCreateView(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-
+    permission_classes = [IsAuthenticated]
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated]
 
 
 class SupplierListCreateView(generics.ListCreateAPIView):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
+    permission_classes = [IsAuthenticated]
 
 class SupplierDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class StockMovementCreateView(generics.CreateAPIView):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
+    permission_classes = [IsAuthenticated]
 
     @transaction.atomic()
     def perform_create(self, serializer):
@@ -64,6 +71,7 @@ class StockMovementCreateView(generics.CreateAPIView):
 
 
 class StockMovementListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
     
@@ -71,16 +79,18 @@ class StockMovementListView(generics.ListAPIView):
     
 
 class StockMovementDetailView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
 
 class LowStockAnalyticsView(generics.ListAPIView):
     serializer_class = ProductSerializer
-
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         return Product.objects.all().filter(quantity_in_stock__lte=F('reorder_level'))
     
 class StockTurnoverAnalyticsView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
@@ -105,6 +115,7 @@ class StockTurnoverAnalyticsView(generics.ListAPIView):
         ).order_by('-turnover_rate')
     
 class CategorySummaryView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = CategorySerializer
 
     def get_queryset(self):
@@ -115,18 +126,21 @@ class CategorySummaryView(generics.ListAPIView):
         )
 
 class MovementSummaryView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = StockMovementSerializer
 
     def get_queryset(self):
         return StockMovement.objects.all().order_by('-timestamp')
 
 class LowStockByCategoryView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
         return Product.objects.filter(quantity_in_stock__lte=F('reorder_level'), category_id=self.kwargs['category_id'])
 
 class LowStockByCategoryAndSupplierView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
