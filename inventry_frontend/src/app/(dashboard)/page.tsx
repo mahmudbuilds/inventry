@@ -1,4 +1,4 @@
-import { AppSidebar } from "@/components/app-sidebar"
+
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DataTable } from "@/components/data-table"
 import { SectionCards } from "@/components/section-cards"
@@ -9,15 +9,7 @@ import data from "./data.json"
 
 export default function Page() {
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar variant="inset" />
+    
       <SidebarInset>
         <SiteHeader title="Dashboard" />
         <div className="flex flex-1 flex-col">
@@ -32,6 +24,5 @@ export default function Page() {
           </div>
         </div>
       </SidebarInset>
-    </SidebarProvider>
   )
 }
