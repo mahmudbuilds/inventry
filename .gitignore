@@ -5,6 +5,8 @@ venv/
 .agents/
 .claude/
 
+.inventry_frontend/design/
+
 # Python compiled files
 *.pyc
 __pycache__/
