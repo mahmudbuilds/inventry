@@ -1,15 +1,15 @@
-"use client"
-
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+"use client";
 
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
+  ArrowLeftRightIcon,
+  BoxesIcon,
+  ChevronDownIcon,
+  PlusIcon,
+  TagsIcon,
+  TruckIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,28 +17,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
-  PlusIcon,
-  BoxesIcon,
-  ArrowLeftRightIcon,
-  TruckIcon,
-  TagsIcon,
-  ChevronDownIcon,
-} from "lucide-react"
-import { useQuickCreate } from "@/context/quick-create-context"
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { useQuickCreate } from "@/context/quick-create-context";
 
 export function NavMain({
   items,
 }: {
   items: {
-    title: string
-    url: string
-    icon?: React.ReactNode
-  }[]
+    title: string;
+    url: string;
+    icon?: React.ReactNode;
+  }[];
 }) {
-  const pathname = usePathname()
-  const { open } = useQuickCreate()
+  const pathname = usePathname();
+  const { open } = useQuickCreate();
 
   return (
     <SidebarGroup>
@@ -61,7 +60,12 @@ export function NavMain({
                 </div>
                 <ChevronDownIcon className="size-3.5 opacity-80" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="bottom" sideOffset={6} className="w-56">
+              <DropdownMenuContent
+                align="start"
+                side="bottom"
+                sideOffset={6}
+                className="w-56"
+              >
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
                   Create New...
                 </DropdownMenuLabel>
@@ -114,5 +118,5 @@ export function NavMain({
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  )
+  );
 }

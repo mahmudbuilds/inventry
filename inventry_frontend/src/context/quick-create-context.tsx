@@ -2,7 +2,12 @@
 
 import * as React from "react";
 
-export type QuickCreateType = "product" | "movement" | "supplier" | "category" | null;
+export type QuickCreateType =
+  | "product"
+  | "movement"
+  | "supplier"
+  | "category"
+  | null;
 
 interface QuickCreateContextType {
   activeType: QuickCreateType;
@@ -11,9 +16,15 @@ interface QuickCreateContextType {
   isOpen: boolean;
 }
 
-const QuickCreateContext = React.createContext<QuickCreateContextType | undefined>(undefined);
+const QuickCreateContext = React.createContext<
+  QuickCreateContextType | undefined
+>(undefined);
 
-export function QuickCreateProvider({ children }: { children: React.ReactNode }) {
+export function QuickCreateProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [activeType, setActiveType] = React.useState<QuickCreateType>(null);
 
   const open = React.useCallback((type: NonNullable<QuickCreateType>) => {

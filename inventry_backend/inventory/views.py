@@ -1,4 +1,4 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Category, Supplier, Product, StockMovement
@@ -29,37 +29,92 @@ from datetime import timedelta
 
 
 class CategoryListCreateView(generics.ListCreateAPIView):
-    queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "description"]
+    ordering_fields = ["name", "product_count", "total_stock", "average_price"]
+    ordering = ["name"]
+
+    def get_queryset(self):
+        return Category.objects.annotate(
+            product_count=Count("products"),
+            total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
+            average_price=Coalesce(Avg("products__unit_price"), Value(0.0)),
+        ).order_by("name")
 
 
 class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Category.objects.all()
+    queryset = Category.objects.annotate(
+        product_count=Count("products"),
+        total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
+        average_price=Coalesce(Avg("products__unit_price"), Value(0.0)),
+    )
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
 
 
 class SupplierListCreateView(generics.ListCreateAPIView):
-    queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "contact_email", "phone"]
+    ordering_fields = ["name", "product_count"]
+    ordering = ["name"]
+
+    def get_queryset(self):
+        return Supplier.objects.annotate(product_count=Count("products")).order_by("name")
 
 
 class SupplierDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Supplier.objects.all()
+    queryset = Supplier.objects.annotate(product_count=Count("products"))
     serializer_class = SupplierSerializer
     permission_classes = [IsAuthenticated]
 
 
 class ProductListCreateView(generics.ListCreateAPIView):
-    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["name", "sku", "category__name", "supplier__name"]
+    ordering_fields = ["id", "name", "sku", "unit_price", "quantity_in_stock", "reorder_level", "created_at"]
+    ordering = ["-id"]
+
+    def get_queryset(self):
+        queryset = Product.objects.all().select_related("category", "supplier")
+        category_id = self.request.query_params.get("category")
+        supplier_id = self.request.query_params.get("supplier")
+        stock_status = self.request.query_params.get("stock_status")
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        if supplier_id:
+            queryset = queryset.filter(supplier_id=supplier_id)
+        if stock_status == "LOW":
+            queryset = queryset.filter(quantity_in_stock__lte=F("reorder_level"), quantity_in_stock__gt=0)
+        elif stock_status == "OUT":
+            queryset = queryset.filter(quantity_in_stock__lte=0)
+        elif stock_status == "OK":
+            queryset = queryset.filter(quantity_in_stock__gt=F("reorder_level"))
+
+        return queryset.order_by("-id")
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        initial_stock = serializer.validated_data.pop("initial_stock", 0)
+        product = serializer.save(quantity_in_stock=initial_stock)
+        if initial_stock > 0:
+            StockMovement.objects.create(
+                product=product,
+                movement_type="IN",
+                quantity=initial_stock,
+                performed_by=self.request.user if self.request.user.is_authenticated else None,
+                notes="Initial inventory setup",
+            )
 
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().select_related("category", "supplier")
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
 
@@ -93,9 +148,20 @@ class StockMovementCreateView(generics.CreateAPIView):
 class StockMovementListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StockMovementSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["product__name", "product__sku", "notes", "performed_by__username"]
+    ordering_fields = ["timestamp", "quantity", "movement_type"]
+    ordering = ["-timestamp"]
 
     def get_queryset(self):
-        queryset = StockMovement.objects.all().order_by("-timestamp")
+        queryset = StockMovement.objects.all().select_related("product", "performed_by").order_by("-timestamp")
+        product_id = self.request.query_params.get("product")
+        movement_type = self.request.query_params.get("movement_type")
+        if product_id:
+            queryset = queryset.filter(product_id=product_id)
+        if movement_type:
+            queryset = queryset.filter(movement_type=movement_type)
+
         limit = self.request.query_params.get("limit")
         if limit:
             try:
@@ -109,6 +175,7 @@ class StockMovementDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
+
 
 
 class LowStockAnalyticsView(generics.ListAPIView):
@@ -154,9 +221,9 @@ class CategorySummaryView(generics.ListAPIView):
     def get_queryset(self):
         return Category.objects.annotate(
             product_count=Count("products"),
-            total_stock=Sum("products__quantity_in_stock"),
-            average_price=Avg("products__unit_price"),
-        )
+            total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
+            average_price=Coalesce(Avg("products__unit_price"), Value(0.0)),
+        ).order_by("name")
 
 
 class MovementSummaryView(generics.RetrieveAPIView):
@@ -359,6 +426,7 @@ def set_auth_cookies(response, refresh_token, access_token):
         httponly=True,
         samesite="Lax",
         secure=not settings.DEBUG,
+        path="/",
         max_age=24 * 60 * 60,
     )
     response.set_cookie(
@@ -367,6 +435,7 @@ def set_auth_cookies(response, refresh_token, access_token):
         httponly=True,
         samesite="Lax",
         secure=not settings.DEBUG,
+        path="/",
         max_age=7 * 24 * 3600,
     )
 

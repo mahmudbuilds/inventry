@@ -5,7 +5,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-
   --brand-primary: #4f46e5;
   --brand-primary-hover: #4338ca;
   --brand-primary-subtle: #eef2ff;
@@ -60,7 +59,24 @@
 }
 
 @theme {
-  --font-sans: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(
+    --font-sans,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif
+  );
+  --font-heading: var(
+    --font-heading,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif
+  );
 
   --color-brand-primary: var(--brand-primary);
   --color-brand-primary-hover: var(--brand-primary-hover);
@@ -103,12 +119,13 @@
 }
 
 .card-hover-shadow:hover {
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.05),
+    0 2px 4px -2px rgba(0, 0, 0, 0.02);
   border-color: #cbd5e1;
 }
 
 .dark {
-
   --background: oklch(0.148 0.004 228.8);
 
   --foreground: oklch(0.987 0.002 197.1);
@@ -173,7 +190,6 @@
 }
 
 @theme inline {
-
   --font-sans: var(--font-sans);
 
   --font-heading: var(--font-heading);
@@ -267,6 +283,6 @@
   }
 }
 
-.active{
+.active {
   background-color: grey;
 }

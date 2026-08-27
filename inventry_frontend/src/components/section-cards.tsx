@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  ActivityIcon,
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  TrendingDownIcon,
+  TrendingUpIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,13 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  TrendingUpIcon,
-  TrendingDownIcon,
-  AlertTriangleIcon,
-  CheckCircle2Icon,
-  ActivityIcon,
-} from "lucide-react";
 
 interface SectionCardsProps {
   total_products?: number;
@@ -59,8 +59,14 @@ export function SectionCards({
                   : "text-rose-600 dark:text-rose-400 gap-1"
               }
             >
-              {isProductsUp ? <TrendingUpIcon className="size-3" /> : <TrendingDownIcon className="size-3" />}
-              {isProductsUp ? `+${products_change_pct}%` : `${products_change_pct}%`}
+              {isProductsUp ? (
+                <TrendingUpIcon className="size-3" />
+              ) : (
+                <TrendingDownIcon className="size-3" />
+              )}
+              {isProductsUp
+                ? `+${products_change_pct}%`
+                : `${products_change_pct}%`}
             </Badge>
           </CardAction>
         </CardHeader>
@@ -95,8 +101,14 @@ export function SectionCards({
                   : "text-rose-600 dark:text-rose-400 gap-1"
               }
             >
-              {isUnitsUp ? <TrendingUpIcon className="size-3" /> : <TrendingDownIcon className="size-3" />}
-              {isUnitsUp ? `+${units_added_change_pct}%` : `${units_added_change_pct}%`}
+              {isUnitsUp ? (
+                <TrendingUpIcon className="size-3" />
+              ) : (
+                <TrendingDownIcon className="size-3" />
+              )}
+              {isUnitsUp
+                ? `+${units_added_change_pct}%`
+                : `${units_added_change_pct}%`}
             </Badge>
           </CardAction>
         </CardHeader>
@@ -152,7 +164,9 @@ export function SectionCards({
               : "All stock levels healthy"}
           </div>
           <div className="text-muted-foreground">
-            {low_stock_count > 0 ? "Reordering recommended" : "No immediate reorders needed"}
+            {low_stock_count > 0
+              ? "Reordering recommended"
+              : "No immediate reorders needed"}
           </div>
         </CardFooter>
       </Card>
@@ -176,7 +190,9 @@ export function SectionCards({
             Outbound to stock ratio
           </div>
           <div className="text-muted-foreground">
-            {turnover_rate > 0 ? "Active inventory movement" : "Steady inventory movement"}
+            {turnover_rate > 0
+              ? "Active inventory movement"
+              : "Steady inventory movement"}
           </div>
         </CardFooter>
       </Card>

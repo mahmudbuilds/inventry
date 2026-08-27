@@ -1,34 +1,36 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
+import {
+  ArrowLeftRightIcon,
+  BoxesIcon,
+  ChartNoAxesCombinedIcon,
+  LayoutDashboardIcon,
+  RefreshCwIcon,
+  TagsIcon,
+  TriangleAlertIcon,
+  TruckIcon,
+  UserCogIcon,
+} from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import type * as React from "react";
 import logo from "@/assets/logo.png";
-import { NavManage } from "@/components/nav-manage";
 import { NavAnalytics } from "@/components/nav-analytics";
 import { NavMain } from "@/components/nav-main";
-import { NavUser, UserType } from "@/components/nav-user";
+import { NavManage } from "@/components/nav-manage";
+import { NavUser, type UserType } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import {
-  LayoutDashboardIcon,
-  CameraIcon,
-  FileTextIcon,
-  TagsIcon,
-  TruckIcon,
-  BoxesIcon,
-  ArrowLeftRightIcon,
-  TriangleAlertIcon,
-  RefreshCwIcon,
-  ChartNoAxesCombinedIcon,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
 
 const data = {
   navMain: [
@@ -38,36 +40,6 @@ const data = {
       icon: <LayoutDashboardIcon />,
     },
   ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: <CameraIcon />,
-      isActive: true,
-      url: "/capture",
-      items: [
-        { title: "Active Proposals", url: "/capture/active" },
-        { title: "Archived", url: "/capture/archived" },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: <FileTextIcon />,
-      url: "/proposals",
-      items: [
-        { title: "Active Proposals", url: "/proposals/active" },
-        { title: "Archived", url: "/proposals/archived" },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: <FileTextIcon />,
-      url: "/prompts",
-      items: [
-        { title: "Active Proposals", url: "/prompts/active" },
-        { title: "Archived", url: "/prompts/archived" },
-      ],
-    },
-  ],
   manage: [
     { name: "Categories", url: "/categories", icon: <TagsIcon /> },
     { name: "Suppliers", url: "/suppliers", icon: <TruckIcon /> },
@@ -75,10 +47,26 @@ const data = {
     { name: "Movements", url: "/movements", icon: <ArrowLeftRightIcon /> },
   ],
   analytics: [
-    { name: "Low Stock Analytics", url: "/analytics/low-stock", icon: <TriangleAlertIcon /> },
-    { name: "Stock Turnover", url: "/analytics/stock-turnover", icon: <RefreshCwIcon /> },
-    { name: "Category Summary", url: "/analytics/category-summary", icon: <ChartNoAxesCombinedIcon /> },
-    { name: "Movement Summary", url: "/analytics/movement-summary", icon: <ArrowLeftRightIcon /> },
+    {
+      name: "Low Stock Analytics",
+      url: "/analytics/low-stock",
+      icon: <TriangleAlertIcon />,
+    },
+    {
+      name: "Stock Turnover",
+      url: "/analytics/stock-turnover",
+      icon: <RefreshCwIcon />,
+    },
+    {
+      name: "Category Summary",
+      url: "/analytics/category-summary",
+      icon: <ChartNoAxesCombinedIcon />,
+    },
+    {
+      name: "Movement Summary",
+      url: "/analytics/movement-summary",
+      icon: <ArrowLeftRightIcon />,
+    },
   ],
 };
 
@@ -87,6 +75,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
+  const pathname = usePathname();
+  const isAdmin = user?.role === "Admin";
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -107,6 +98,23 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         <NavMain items={data.navMain} />
         <NavManage items={data.manage} />
         <NavAnalytics items={data.analytics} />
+
+        {isAdmin && (
+          <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={pathname === "/users"}
+                  render={<Link href="/users" />}
+                >
+                  <UserCogIcon />
+                  <span>User Management</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>
@@ -114,4 +122,4 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       </SidebarFooter>
     </Sidebar>
   );
-} 
+}

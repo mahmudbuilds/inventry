@@ -1,0 +1,583 @@
+"use client";
+
+import {
+  CheckCircle2Icon,
+  Loader2Icon,
+  MoreVerticalIcon,
+  PencilIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
+  Trash2Icon,
+  UserCheckIcon,
+  UserCogIcon,
+  UsersIcon,
+  XCircleIcon,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import * as React from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+export interface ManagedUser {
+  id: number;
+  username: string;
+  email: string;
+  name: string;
+  role: "Admin" | "Staff" | "Member";
+  is_superuser: boolean;
+  is_staff: boolean;
+  is_active: boolean;
+  date_joined: string;
+}
+
+export function UsersClient({
+  initialUsers = [],
+  currentUserId,
+}: {
+  initialUsers: ManagedUser[];
+  currentUserId: number;
+}) {
+  const router = useRouter();
+  const [users, setUsers] = React.useState<ManagedUser[]>(initialUsers);
+  const [search, setSearch] = React.useState("");
+  const [roleFilter, setRoleFilter] = React.useState("ALL");
+
+  // Edit Role State
+  const [editUser, setEditUser] = React.useState<ManagedUser | null>(null);
+  const [selectedRole, setSelectedRole] = React.useState<string>("Member");
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editSubmitting, setEditSubmitting] = React.useState(false);
+
+  // Delete State
+  const [deleteUser, setDeleteUser] = React.useState<ManagedUser | null>(null);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    setUsers(initialUsers);
+  }, [initialUsers]);
+
+  const filteredUsers = React.useMemo(() => {
+    return users.filter((u) => {
+      const query = search.toLowerCase();
+      const matchesSearch =
+        u.username.toLowerCase().includes(query) ||
+        u.email.toLowerCase().includes(query) ||
+        u.name.toLowerCase().includes(query);
+
+      const matchesRole = roleFilter === "ALL" || u.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [users, search, roleFilter]);
+
+  const adminCount = users.filter((u) => u.role === "Admin").length;
+  const staffCount = users.filter((u) => u.role === "Staff").length;
+  const memberCount = users.filter((u) => u.role === "Member").length;
+
+  const openEditDialog = (user: ManagedUser) => {
+    setEditUser(user);
+    setSelectedRole(user.role);
+    setEditOpen(true);
+  };
+
+  const handleRoleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUser) return;
+
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`/api/auth/users/${editUser.id}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: selectedRole }),
+      });
+
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editUser.id ? { ...u, role: updatedUser.role } : u,
+          ),
+        );
+        toast.success(
+          `Updated role for ${editUser.username} to ${selectedRole}`,
+        );
+        setEditOpen(false);
+        router.refresh();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || err.detail || "Failed to update role");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network error while updating role");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const openDeleteDialog = (user: ManagedUser) => {
+    setDeleteUser(user);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return;
+    if (deleteUser.id === currentUserId) {
+      toast.error("You cannot delete your own active account");
+      return;
+    }
+
+    setDeleteSubmitting(true);
+    try {
+      const res = await fetch(`/api/auth/users/${deleteUser.id}/`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
+        toast.success(`User ${deleteUser.username} deleted successfully`);
+        setDeleteOpen(false);
+        router.refresh();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || err.detail || "Failed to delete user");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network error while deleting user");
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 px-4 lg:px-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <Card className="border-border/80 shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardDescription className="text-xs font-medium">
+              Total Accounts
+            </CardDescription>
+            <UsersIcon className="size-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{users.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Registered users across organization
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardDescription className="text-xs font-medium">
+              Superusers (Admins)
+            </CardDescription>
+            <ShieldAlertIcon className="size-4 text-rose-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+              {adminCount}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Full administrative privileges
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardDescription className="text-xs font-medium">
+              Staff Members
+            </CardDescription>
+            <ShieldCheckIcon className="size-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {staffCount}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Operational inventory management
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardDescription className="text-xs font-medium">
+              Standard Members
+            </CardDescription>
+            <UserCheckIcon className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{memberCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              View & standard access
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Table Card */}
+      <Card className="border-border/80 shadow-xs">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <UserCogIcon className="size-5 text-primary" />
+              User Account Directory
+            </CardTitle>
+            <CardDescription>
+              Manage system permissions, promote users to staff/admin, or remove
+              accounts.
+            </CardDescription>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <SearchIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search username, email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+
+            <Select
+              value={roleFilter}
+              onValueChange={(val) => {
+                if (val) setRoleFilter(val);
+              }}
+            >
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Roles</SelectItem>
+                <SelectItem value="Admin">Admins</SelectItem>
+                <SelectItem value="Staff">Staff</SelectItem>
+                <SelectItem value="Member">Members</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-md border border-border/60 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Joined Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-32 text-center text-muted-foreground"
+                    >
+                      No user accounts found matching your filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((u, index) => {
+                    const isCurrent = u.id === currentUserId;
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-foreground">
+                                {u.name || u.username}
+                              </span>
+                              {isCurrent && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] py-0 px-1 font-normal"
+                                >
+                                  You
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              @{u.username}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {u.email || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {u.role === "Admin" ? (
+                            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 border-rose-200 dark:border-rose-900">
+                              <ShieldAlertIcon className="size-3 mr-1" />
+                              Admin
+                            </Badge>
+                          ) : u.role === "Staff" ? (
+                            <Badge className="bg-blue-500/15 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 border-blue-200 dark:border-blue-900">
+                              <ShieldCheckIcon className="size-3 mr-1" />
+                              Staff
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-muted-foreground"
+                            >
+                              <UserCheckIcon className="size-3 mr-1" />
+                              Member
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {u.is_active ? (
+                            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              <CheckCircle2Icon className="size-3.5" />
+                              Active
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <XCircleIcon className="size-3.5" />
+                              Inactive
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(u.date_joined).toLocaleDateString(
+                            undefined,
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                />
+                              }
+                            >
+                              <MoreVerticalIcon className="size-4" />
+                              <span className="sr-only">Open menu</span>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                                Actions
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => openEditDialog(u)}
+                                className="cursor-pointer"
+                              >
+                                <PencilIcon className="size-3.5 mr-2" />
+                                Change Role
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => openDeleteDialog(u)}
+                                disabled={isCurrent}
+                                className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                              >
+                                <Trash2Icon className="size-3.5 mr-2" />
+                                Delete Account
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <form onSubmit={handleRoleUpdate}>
+            <DialogHeader>
+              <DialogTitle>Change User Role</DialogTitle>
+              <DialogDescription>
+                Modify permissions for{" "}
+                <span className="font-medium text-foreground">
+                  {editUser?.username}
+                </span>
+                .
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="role">Permission Role</Label>
+                <Select
+                  value={selectedRole}
+                  onValueChange={(val) => {
+                    if (val) setSelectedRole(val);
+                  }}
+                >
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">
+                      <div className="flex flex-col text-left">
+                        <span className="font-semibold text-rose-600 dark:text-rose-400">
+                          Admin (Superuser)
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Full system control, user management, all models
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Staff">
+                      <div className="flex flex-col text-left">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                          Staff
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Manage inventory, movements, suppliers & categories
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Member">
+                      <div className="flex flex-col text-left">
+                        <span className="font-semibold text-foreground">
+                          Member
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Standard read/write inventory access
+                        </span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={editSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editSubmitting}>
+                {editSubmitting ? (
+                  <>
+                    <Loader2Icon className="size-4 animate-spin mr-1" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              Delete User Account
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the account for{" "}
+              <span className="font-semibold text-foreground">
+                {deleteUser?.username}
+              </span>
+              ? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleteSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={deleteSubmitting}
+            >
+              {deleteSubmitting ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin mr-1" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Account"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

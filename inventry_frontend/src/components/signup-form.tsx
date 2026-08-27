@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,9 +18,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const router = useRouter();
@@ -51,7 +51,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         const data = await response.json();
         // Handle success: store token, redirect, etc.
         console.log("Registration successful:", data);
-        router.push("/")
+        router.push("/");
       }
     } catch (err) {
       console.error("Registration error:", err);

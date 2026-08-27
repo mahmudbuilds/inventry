@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
-import { Public_Sans, Noto_Sans } from "next/font/google";
+import { Noto_Sans, Public_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { QuickCreateProvider } from "@/context/quick-create-context";
-import { QuickCreateDrawer } from "@/components/quick-create-drawer";
-import { fetchWithAuth } from "@/lib/api";
 
 const notoSansHeading = Noto_Sans({
   subsets: ["latin"],
@@ -20,28 +15,13 @@ export const metadata: Metadata = {
   description: "Real-time inventory tracking, alerts, and analytics",
 };
 
-async function getUser() {
-  try {
-    const res = await fetchWithAuth("/api/auth/me", {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.error("Failed to load user data", err);
-  }
-  return null;
-}
+import { Toaster } from "@/components/ui/sonner";
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getUser();
-
   return (
     <html
       lang="en"
@@ -54,20 +34,8 @@ export default async function RootLayout({
       )}
     >
       <body className="min-h-full bg-[#F6F8FC] text-slate-800 antialiased selection:bg-indigo-500 selection:text-white">
-        <QuickCreateProvider>
-          <SidebarProvider
-            style={
-              {
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)",
-              } as React.CSSProperties
-            }
-          >
-            <AppSidebar variant="inset" user={user} />
-            {children}
-            <QuickCreateDrawer />
-          </SidebarProvider>
-        </QuickCreateProvider>
+        {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
