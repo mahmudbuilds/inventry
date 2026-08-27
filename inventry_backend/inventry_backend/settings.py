@@ -58,6 +58,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 ROOT_URLCONF = 'inventry_backend.urls'
 
 TEMPLATES = [
@@ -137,6 +139,6 @@ MAILERS = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "inventry_backend.authentication.CookieJWTAuthentication",
     ]
 }

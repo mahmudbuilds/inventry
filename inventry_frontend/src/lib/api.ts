@@ -1,67 +1,62 @@
+import { cookies } from "next/headers";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-interface TokenResponse {
-  access: string;
-  refresh?: string;
+// Helper to get access and refresh tokens individually
+async function getAuthTokens(overrideToken?: string) {
+  if (typeof window !== "undefined")
+    return { accessToken: undefined, refreshToken: undefined };
+
+  const cookieStore = await cookies();
+  const accessToken = overrideToken ?? cookieStore.get("access_token")?.value;
+  const refreshToken = cookieStore.get("refresh_token")?.value;
+
+  return { accessToken, refreshToken };
 }
-
-export const getAccessToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
-};
-
-export const setTokens = (access: string, refresh?: string): void => {
-  localStorage.setItem("access_token", access);
-  refresh && localStorage.setItem("refresh_token", refresh);
-};
-
-export const clearStoredTokens = (): void => {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-};
 
 export async function fetchWithAuth(
   endpoint: string,
   options: RequestInit = {},
+  hasRetried = false,
+  accessTokenOverride?: string,
 ): Promise<Response> {
-  let token = getAccessToken();
+  const { accessToken, refreshToken } =
+    await getAuthTokens(accessTokenOverride);
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  // Set up request headers using Bearer auth
+  const requestHeaders = new Headers(options.headers);
+  requestHeaders.set("Content-Type", "application/json");
 
-  let response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-
-  // Handling expired access token
-  if (response.status === 401 && typeof window !== "undefined") {
-    const refreshToken = localStorage.getItem("refresh_token");
-
-    if (refreshToken) {
-      const refreshResponse = await fetch(`${API_URL}/api/token/refresh/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (refreshResponse.ok) {
-        const data: TokenResponse = await refreshResponse.json();
-
-        setTokens(data.access);
-
-        // Retrying original request with new generated tokens
-
-        (headers as Record<string, string>)["Authorization"] =
-          `Bearer ${data.access}`;
-
-        response = await fetch(`${API_URL}${endpoint}`, {
-          method: "POST",
-          ...options,
-          headers,
-        });
-      }
-    }
+  if (accessToken) {
+    requestHeaders.set("Authorization", `Bearer ${accessToken}`);
   }
-  return response;
+
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers: requestHeaders,
+    credentials: "include",
+  });
+
+  // Return immediately if request succeeded or already retried
+  if (response.status !== 401 || hasRetried) {
+    return response;
+  }
+
+  // Pass refresh token in request body or header depending on backend requirements
+  const refreshResponse = await fetch(`${API_URL}/api/token/refresh/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refresh: refreshToken }),
+    credentials: "include",
+  });
+
+  if (!refreshResponse.ok) return response;
+
+  const data = await refreshResponse.json();
+  const newAccessToken = data.access; // Assuming API returns { access: "..." }
+
+  // Retry the request with the new Bearer token
+  return fetchWithAuth(endpoint, options, true, newAccessToken);
 }

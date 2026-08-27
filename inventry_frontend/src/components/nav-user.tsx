@@ -16,28 +16,26 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  EllipsisVerticalIcon,
-  CircleUserRoundIcon,
-  CreditCardIcon,
-  BellIcon,
-  LogOutIcon,
-} from "lucide-react";
+import { EllipsisVerticalIcon, LogOutIcon } from "lucide-react";
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string;
-    avatar?: string;
-    email: string;
-    role: string;
-  };
-}) {
+export interface UserType {
+  name: string;
+  role: string;
+  email: string;
+  avatar?: string;
+}
+
+export function NavUser({ user }: { user: UserType | null }) {
   const { isMobile } = useSidebar();
-  function capitalize(word: string) {
-    return word.charAt(0).toUpperCase() + word.slice(1);
+
+  if (!user) {
+    return null;
   }
+
+  function capitalize(word: string) {
+    return word ? word.charAt(0).toUpperCase() + word.slice(1) : "";
+  }
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -47,12 +45,12 @@ export function NavUser({
               <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
             }
           >
-            {user.avatar && (
-              <Avatar className="size-8 rounded-lg grayscale">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-              </Avatar>
-            )}
+            <Avatar className="size-8 rounded-lg grayscale">
+              {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+              <AvatarFallback className="rounded-lg">
+                {user.name.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-xs text-foreground/70">
@@ -70,12 +68,12 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  {user.avatar && (
-                    <Avatar className="size-8">
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                    </Avatar>
-                  )}
+                  <Avatar className="size-8">
+                    {user.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+                    <AvatarFallback className="rounded-lg">
+                      {user.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
                     <span className="truncate text-xs text-muted-foreground">
@@ -87,7 +85,7 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
-              <LogOutIcon />
+              <LogOutIcon className="mr-2 size-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
