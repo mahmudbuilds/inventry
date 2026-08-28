@@ -5,6 +5,8 @@ venv/
 .agents/
 .claude/
 
+.inventry_frontend/design/
+
 # Python compiled files
 *.pyc
 __pycache__/
@@ -13,3 +15,5 @@ __pycache__/
 *.sqlite3
 db.sqlite3
 .env
+
+skills-lock.json
