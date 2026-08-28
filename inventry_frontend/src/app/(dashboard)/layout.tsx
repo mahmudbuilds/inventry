@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { QuickCreateDrawer } from "@/components/quick-create-drawer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { QuickCreateProvider } from "@/context/quick-create-context";
-import { UserRoleProvider, type UserRole } from "@/context/user-role-context";
+import { type UserRole, UserRoleProvider } from "@/context/user-role-context";
 import { fetchWithAuth } from "@/lib/api";
 
 async function getUser() {

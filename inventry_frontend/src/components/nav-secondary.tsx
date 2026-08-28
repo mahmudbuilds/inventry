@@ -1,8 +1,7 @@
 "use client";
 
-import type * as React from "react";
-
 import Link from "next/link";
+import type * as React from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,

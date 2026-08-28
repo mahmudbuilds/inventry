@@ -51,8 +51,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, formatApiError } from "@/lib/api-client";
 import { useUserRole } from "@/context/user-role-context";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 
 export interface SupplierItem {
   id: number;

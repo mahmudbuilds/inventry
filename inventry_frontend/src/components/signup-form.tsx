@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -27,6 +28,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -34,6 +36,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       setError("Passwords do not match");
       return;
     }
+    setSubmitting(true);
     try {
       const response = await apiFetch("/api/auth/register/", {
         method: "POST",
@@ -52,6 +55,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     } catch (err) {
       console.error("Registration error:", err);
       setError(`Registration failed: ${err}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -120,7 +125,14 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
             </Field>
             <FieldGroup>
               <Field>
-                <Button type="submit">Create Account</Button>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  aria-busy={submitting}
+                >
+                  {submitting && <Loader2Icon className="animate-spin" />}
+                  {submitting ? "Creating account..." : "Create Account"}
+                </Button>
                 <FieldDescription className="px-6 text-center">
                   Already have an account? <Link href="/login">Sign in</Link>
                 </FieldDescription>

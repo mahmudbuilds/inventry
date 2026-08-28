@@ -446,6 +446,15 @@ class RegisterView(APIView):
                 {"error": "Email already in use"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        from django.contrib.auth.password_validation import validate_password
+
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            return Response(
+                {"password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         user = User.objects.create_user(
             username=username, email=email, password=password
         )
@@ -457,6 +466,11 @@ class RegisterView(APIView):
         )
 
         set_auth_cookies(response, refresh, refresh.access_token)
+        from django.middleware.csrf import get_token
+
+        response.set_cookie(
+            "csrftoken", get_token(request), samesite="Lax", secure=not settings.DEBUG
+        )
 
         return response
 

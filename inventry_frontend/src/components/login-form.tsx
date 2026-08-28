@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -29,9 +30,11 @@ export function LoginForm({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const response = await apiFetch("/api/auth/login", {
         method: "POST",
@@ -49,6 +52,8 @@ export function LoginForm({
     } catch (err) {
       console.error("Login error:", err);
       setError(`Login failed: ${err}`);
+    } finally {
+      setSubmitting(false);
     }
   };
   return (
@@ -92,7 +97,14 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  aria-busy={submitting}
+                >
+                  {submitting && <Loader2Icon className="animate-spin" />}
+                  {submitting ? "Logging in..." : "Login"}
+                </Button>
 
                 <FieldDescription className="text-center">
                   Don&apos;t have an account?{" "}

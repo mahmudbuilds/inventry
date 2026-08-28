@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type * as React from "react";
 import logo from "@/assets/logo.png";
 import { NavAnalytics } from "@/components/nav-analytics";
@@ -30,7 +31,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { usePathname } from "next/navigation";
 
 const data = {
   navMain: [
