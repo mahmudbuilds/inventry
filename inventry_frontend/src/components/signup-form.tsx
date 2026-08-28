@@ -18,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { apiFetch } from "@/lib/api-client";
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const router = useRouter();
@@ -34,15 +35,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       return;
     }
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ username, email, password }),
-        },
-      );
+      const response = await apiFetch("/api/auth/register/", {
+        method: "POST",
+        body: JSON.stringify({ username, email, password }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();

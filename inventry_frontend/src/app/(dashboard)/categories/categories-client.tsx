@@ -50,6 +50,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiFetch, formatApiError } from "@/lib/api-client";
+import { useUserRole } from "@/context/user-role-context";
 
 export interface CategoryItem {
   id: number;
@@ -66,11 +68,12 @@ export function CategoriesClient({
   initialCategories: CategoryItem[];
 }) {
   const router = useRouter();
+  const { canManageInventory, canDeleteInventory } = useUserRole();
   const [categories, setCategories] =
     React.useState<CategoryItem[]>(initialCategories);
   const [search, setSearch] = React.useState("");
 
-  // Create Dialog
+  // Create Modal
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createForm, setCreateForm] = React.useState({
@@ -78,7 +81,7 @@ export function CategoriesClient({
     description: "",
   });
 
-  // Edit Dialog
+  // Edit Modal
   const [editCategory, setEditCategory] = React.useState<CategoryItem | null>(
     null,
   );
@@ -86,7 +89,7 @@ export function CategoriesClient({
   const [editSubmitting, setEditSubmitting] = React.useState(false);
   const [editForm, setEditForm] = React.useState({ name: "", description: "" });
 
-  // Delete Dialog
+  // Delete Modal
   const [deleteCategory, setDeleteCategory] =
     React.useState<CategoryItem | null>(null);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -118,9 +121,8 @@ export function CategoriesClient({
     e.preventDefault();
     setCreateSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/categories/", {
+      const res = await apiFetch("/api/inventory/categories/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm),
       });
 
@@ -131,10 +133,7 @@ export function CategoriesClient({
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to create category");
+        toast.error(formatApiError(errorData, "Failed to create category"));
       }
     } catch (err) {
       console.error(err);
@@ -155,18 +154,21 @@ export function CategoriesClient({
     if (!editCategory) return;
     setEditSubmitting(true);
     try {
-      const res = await fetch(`/api/inventory/categories/${editCategory.id}/`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
+      const res = await apiFetch(
+        `/api/inventory/categories/${editCategory.id}/`,
+        {
+          method: "PUT",
+          body: JSON.stringify(editForm),
+        },
+      );
 
       if (res.ok) {
         toast.success(`Category "${editForm.name}" updated successfully!`);
         setEditOpen(false);
         router.refresh();
       } else {
-        toast.error("Failed to update category");
+        const errJson = await res.json();
+        toast.error(formatApiError(errJson, "Failed to update category"));
       }
     } catch (err) {
       console.error(err);
@@ -180,7 +182,7 @@ export function CategoriesClient({
     if (!deleteCategory) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/inventory/categories/${deleteCategory.id}/`,
         {
           method: "DELETE",
@@ -194,7 +196,8 @@ export function CategoriesClient({
         setDeleteOpen(false);
         router.refresh();
       } else {
-        toast.error("Failed to delete category");
+        const errJson = await res.json().catch(() => ({}));
+        toast.error(formatApiError(errJson, "Failed to delete category"));
       }
     } catch (err) {
       console.error(err);
@@ -271,14 +274,16 @@ export function CategoriesClient({
             </CardDescription>
           </div>
           <CardAction className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="text-xs gap-1.5"
-              onClick={() => setCreateOpen(true)}
-            >
-              <PlusIcon className="size-3.5" />
-              Add Category
-            </Button>
+            {canManageInventory && (
+              <Button
+                size="sm"
+                className="text-xs gap-1.5"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="size-3.5" />
+                Add Category
+              </Button>
+            )}
           </CardAction>
         </CardHeader>
 
@@ -304,14 +309,16 @@ export function CategoriesClient({
                   ? "No categories match your search term."
                   : "Organize your inventory by creating your first category."}
               </p>
-              <Button
-                size="sm"
-                className="mt-4 text-xs gap-1.5"
-                onClick={() => setCreateOpen(true)}
-              >
-                <PlusIcon className="size-3.5" />
-                Add Category
-              </Button>
+              {canManageInventory && (
+                <Button
+                  size="sm"
+                  className="mt-4 text-xs gap-1.5"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <PlusIcon className="size-3.5" />
+                  Add Category
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -384,24 +391,30 @@ export function CategoriesClient({
                               <DropdownMenuLabel className="text-xs">
                                 Options
                               </DropdownMenuLabel>
-                              <DropdownMenuItem
-                                className="text-xs gap-2 cursor-pointer"
-                                onClick={() => openEdit(c)}
-                              >
-                                <PencilIcon className="size-3.5 text-muted-foreground" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-xs gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
-                                onClick={() => {
-                                  setDeleteCategory(c);
-                                  setDeleteOpen(true);
-                                }}
-                              >
-                                <Trash2Icon className="size-3.5" />
-                                Delete
-                              </DropdownMenuItem>
+                              {canManageInventory && (
+                                <DropdownMenuItem
+                                  className="text-xs gap-2 cursor-pointer"
+                                  onClick={() => openEdit(c)}
+                                >
+                                  <PencilIcon className="size-3.5 text-muted-foreground" />
+                                  Edit
+                                </DropdownMenuItem>
+                              )}
+                              {canDeleteInventory && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-xs gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
+                                    onClick={() => {
+                                      setDeleteCategory(c);
+                                      setDeleteOpen(true);
+                                    }}
+                                  >
+                                    <Trash2Icon className="size-3.5" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

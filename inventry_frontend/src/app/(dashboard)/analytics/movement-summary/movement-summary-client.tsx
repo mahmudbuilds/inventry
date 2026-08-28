@@ -183,6 +183,7 @@ export function MovementSummaryClient({
               variant="outline"
               size="sm"
               className="text-xs h-8 gap-1.5"
+              nativeButton={false}
               render={
                 <Link href="/movements">
                   Open Full Ledger <ArrowRightIcon className="size-3.5" />

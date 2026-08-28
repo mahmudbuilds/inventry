@@ -23,15 +23,21 @@ export default async function DashboardPage() {
   };
 
   let recentMovements: StockMovementItem[] = [];
+  let stockFlow = [];
 
   try {
-    const [overviewRes, movementsRes] = await Promise.all([
+    const [overviewRes, movementsRes, stockFlowRes] = await Promise.all([
       fetchWithAuth("/api/inventory/analytics/dashboard-overview/", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
       }),
       fetchWithAuth("/api/inventory/movements/history/?limit=8", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      }),
+      fetchWithAuth("/api/inventory/analytics/stock-flow?days=30", {
         method: "GET",
         credentials: "include",
         cache: "no-store",
@@ -49,6 +55,11 @@ export default async function DashboardPage() {
         ? moveData
         : moveData.results || [];
     }
+
+    if (stockFlowRes.ok) {
+      const flowData = await stockFlowRes.json();
+      stockFlow = Array.isArray(flowData) ? flowData : [];
+    }
   } catch (err) {
     console.error("Failed to load dashboard data", err);
   }
@@ -61,7 +72,7 @@ export default async function DashboardPage() {
           <div className="flex flex-col gap-6 py-4 md:py-6">
             <SectionCards {...stats} />
             <div className="px-4 lg:px-6">
-              <ChartAreaInteractive />
+              <ChartAreaInteractive initialData={stockFlow} />
             </div>
             <DashboardRecentMovements initialMovements={recentMovements} />
           </div>

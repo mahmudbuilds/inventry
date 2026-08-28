@@ -27,7 +27,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 import { useQuickCreate } from "@/context/quick-create-context";
+import { useUserRole } from "@/context/user-role-context";
 
 interface OptionItem {
   id: number;
@@ -37,11 +39,13 @@ interface OptionItem {
 
 export function QuickCreateDrawer() {
   const router = useRouter();
-  const { activeType, close, isOpen } = useQuickCreate();
+  const { activeType, close, isOpen, open: openType } = useQuickCreate();
+  const { canManageInventory } = useUserRole();
 
   const [categories, setCategories] = React.useState<OptionItem[]>([]);
   const [suppliers, setSuppliers] = React.useState<OptionItem[]>([]);
   const [products, setProducts] = React.useState<OptionItem[]>([]);
+  const [loadingDependencies, setLoadingDependencies] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
   // Form states
@@ -73,43 +77,46 @@ export function QuickCreateDrawer() {
     description: "",
   });
 
-  // Fetch dropdown dependencies when drawer opens
-  React.useEffect(() => {
-    if (!isOpen) return;
+  const fetchDependencies = React.useCallback(async () => {
+    setLoadingDependencies(true);
+    try {
+      const [catsRes, supsRes, prodsRes] = await Promise.all([
+        apiFetch("/api/inventory/categories/"),
+        apiFetch("/api/inventory/suppliers/"),
+        apiFetch("/api/inventory/products/"),
+      ]);
 
-    async function fetchDependencies() {
-      try {
-        const [catsRes, supsRes, prodsRes] = await Promise.all([
-          fetch("/api/inventory/categories/"),
-          fetch("/api/inventory/suppliers/"),
-          fetch("/api/inventory/products/"),
-        ]);
-
-        if (catsRes.ok) {
-          const catData = await catsRes.json();
-          setCategories(
-            Array.isArray(catData) ? catData : catData.results || [],
-          );
-        }
-        if (supsRes.ok) {
-          const supData = await supsRes.json();
-          setSuppliers(
-            Array.isArray(supData) ? supData : supData.results || [],
-          );
-        }
-        if (prodsRes.ok) {
-          const prodData = await prodsRes.json();
-          setProducts(
-            Array.isArray(prodData) ? prodData : prodData.results || [],
-          );
-        }
-      } catch (err) {
-        console.error("Failed to load options for quick create", err);
+      if (catsRes.ok) {
+        const catData = await catsRes.json();
+        setCategories(
+          Array.isArray(catData) ? catData : catData.results || [],
+        );
       }
+      if (supsRes.ok) {
+        const supData = await supsRes.json();
+        setSuppliers(
+          Array.isArray(supData) ? supData : supData.results || [],
+        );
+      }
+      if (prodsRes.ok) {
+        const prodData = await prodsRes.json();
+        setProducts(
+          Array.isArray(prodData) ? prodData : prodData.results || [],
+        );
+      }
+    } catch (err) {
+      console.error("Failed to load options for quick create", err);
+    } finally {
+      setLoadingDependencies(false);
     }
+  }, []);
 
-    fetchDependencies();
-  }, [isOpen]);
+  // Fetch dropdown dependencies when drawer opens or active tab switches
+  React.useEffect(() => {
+    if (isOpen) {
+      fetchDependencies();
+    }
+  }, [isOpen, activeType, fetchDependencies]);
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,9 +138,8 @@ export function QuickCreateDrawer() {
         payload.supplier = parseInt(productForm.supplier, 10);
       }
 
-      const res = await fetch("/api/inventory/products/", {
+      const res = await apiFetch("/api/inventory/products/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -152,10 +158,7 @@ export function QuickCreateDrawer() {
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to create product");
+        toast.error(formatApiError(errorData, "Failed to create product"));
       }
     } catch (err) {
       console.error(err);
@@ -173,9 +176,8 @@ export function QuickCreateDrawer() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/movements/", {
+      const res = await apiFetch("/api/inventory/movements/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product: parseInt(movementForm.product, 10),
           movement_type: movementForm.movement_type,
@@ -198,10 +200,7 @@ export function QuickCreateDrawer() {
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to record movement");
+        toast.error(formatApiError(errorData, "Failed to record movement"));
       }
     } catch (err) {
       console.error(err);
@@ -215,23 +214,21 @@ export function QuickCreateDrawer() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/suppliers/", {
+      const res = await apiFetch("/api/inventory/suppliers/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(supplierForm),
       });
 
       if (res.ok) {
+        const supData = await res.json();
         toast.success(`Supplier "${supplierForm.name}" added successfully!`);
         setSupplierForm({ name: "", contact_email: "", phone: "" });
+        await fetchDependencies();
         close();
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to add supplier");
+        toast.error(formatApiError(errorData, "Failed to add supplier"));
       }
     } catch (err) {
       console.error(err);
@@ -245,23 +242,21 @@ export function QuickCreateDrawer() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/categories/", {
+      const res = await apiFetch("/api/inventory/categories/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(categoryForm),
       });
 
       if (res.ok) {
+        const catData = await res.json();
         toast.success(`Category "${categoryForm.name}" created successfully!`);
         setCategoryForm({ name: "", description: "" });
+        await fetchDependencies();
         close();
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to create category");
+        toast.error(formatApiError(errorData, "Failed to create category"));
       }
     } catch (err) {
       console.error(err);
@@ -309,6 +304,8 @@ export function QuickCreateDrawer() {
   };
 
   const meta = getTitleAndDescription();
+
+  if (!canManageInventory) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && close()}>
@@ -402,11 +399,26 @@ export function QuickCreateDrawer() {
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={String(cat.id)}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
+                      {categories.length === 0 ? (
+                        <div className="p-3 text-center flex flex-col items-center gap-1.5">
+                          <p className="text-xs text-muted-foreground">No categories found</p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-6 text-xs px-2"
+                            onClick={() => openType("category")}
+                          >
+                            + Add Category
+                          </Button>
+                        </div>
+                      ) : (
+                        categories.map((cat) => (
+                          <SelectItem key={cat.id} value={String(cat.id)}>
+                            {cat.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -425,6 +437,7 @@ export function QuickCreateDrawer() {
                       <SelectValue placeholder="None / Select" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">None / Unassigned</SelectItem>
                       {suppliers.map((sup) => (
                         <SelectItem key={sup.id} value={String(sup.id)}>
                           {sup.name}
@@ -519,11 +532,26 @@ export function QuickCreateDrawer() {
                     <SelectValue placeholder="Choose product..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.name} {p.sku ? `(${p.sku})` : ""}
-                      </SelectItem>
-                    ))}
+                    {products.length === 0 ? (
+                      <div className="p-3 text-center flex flex-col items-center gap-1.5">
+                        <p className="text-xs text-muted-foreground">No products available</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 text-xs px-2"
+                          onClick={() => openType("product")}
+                        >
+                          + Add Product
+                        </Button>
+                      </div>
+                    ) : (
+                      products.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name} {p.sku ? `(${p.sku})` : ""}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

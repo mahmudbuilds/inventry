@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function MovementsPage() {
   let movements: StockMovementItem[] = [];
   let products: OptionItem[] = [];
+  let movementCount = 0;
 
   try {
     const [moveRes, prodRes] = await Promise.all([
@@ -30,6 +31,7 @@ export default async function MovementsPage() {
     if (moveRes.ok) {
       const data = await moveRes.json();
       movements = Array.isArray(data) ? data : data.results || [];
+      movementCount = Array.isArray(data) ? data.length : data.count || 0;
     }
 
     if (prodRes.ok) {
@@ -44,7 +46,11 @@ export default async function MovementsPage() {
     <SidebarInset>
       <SiteHeader title="Stock Movements" />
       <div className="flex flex-1 flex-col py-6">
-        <MovementsClient initialMovements={movements} products={products} />
+        <MovementsClient
+          initialMovements={movements}
+          initialMovementCount={movementCount}
+          products={products}
+        />
       </div>
     </SidebarInset>
   );

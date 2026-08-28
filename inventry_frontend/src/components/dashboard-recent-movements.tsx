@@ -72,6 +72,7 @@ export function DashboardRecentMovements({
             variant="ghost"
             size="sm"
             className="text-xs h-8 gap-1"
+            nativeButton={false}
             render={
               <Link href="/movements">
                 View All <ArrowRightIcon className="size-3.5" />

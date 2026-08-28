@@ -5,6 +5,8 @@ import {
   ArrowDownLeftIcon,
   ArrowLeftRightIcon,
   ArrowUpRightIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ClockIcon,
   Loader2Icon,
   PlusIcon,
@@ -50,6 +52,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiFetch, formatApiError } from "@/lib/api-client";
+import { useQuickCreate } from "@/context/quick-create-context";
+import { useUserRole } from "@/context/user-role-context";
 
 export interface StockMovementItem {
   id: number;
@@ -72,16 +77,80 @@ export interface OptionItem {
 
 export function MovementsClient({
   initialMovements = [],
+  initialMovementCount = 0,
   products = [],
 }: {
   initialMovements: StockMovementItem[];
+  initialMovementCount: number;
   products: OptionItem[];
 }) {
   const router = useRouter();
+  const { open: openQuickCreate } = useQuickCreate();
+  const { canManageInventory } = useUserRole();
   const [movements, setMovements] =
     React.useState<StockMovementItem[]>(initialMovements);
+  const [productsList, setProductsList] =
+    React.useState<OptionItem[]>(products);
+  const [movementCount, setMovementCount] =
+    React.useState(initialMovementCount);
+  const [page, setPage] = React.useState(1);
+  const [loadingMovements, setLoadingMovements] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState("ALL");
+
+  const totalPages = Math.max(1, Math.ceil(movementCount / 20));
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    async function fetchMovements() {
+      setLoadingMovements(true);
+      const params = new URLSearchParams({ page: String(page) });
+      if (search.trim()) params.set("search", search.trim());
+      if (typeFilter !== "ALL") params.set("movement_type", typeFilter);
+
+      try {
+        const res = await apiFetch(
+          `/api/inventory/movements/history/?${params.toString()}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isMounted) {
+          setMovements(Array.isArray(data) ? data : data.results || []);
+          setMovementCount(Array.isArray(data) ? data.length : data.count || 0);
+        }
+      } catch (err) {
+        console.error("Failed to load stock movements", err);
+      } finally {
+        if (isMounted) setLoadingMovements(false);
+      }
+    }
+
+    fetchMovements();
+    return () => {
+      isMounted = false;
+    };
+  }, [page, search, typeFilter]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter]);
+
+  const fetchProducts = React.useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/inventory/products/");
+      if (res.ok) {
+        const data = await res.json();
+        setProductsList(Array.isArray(data) ? data : data.results || []);
+      }
+    } catch (err) {
+      console.error("Failed to load products in movements client", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Create Movement Dialog
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -96,6 +165,16 @@ export function MovementsClient({
   React.useEffect(() => {
     setMovements(initialMovements);
   }, [initialMovements]);
+
+  React.useEffect(() => {
+    if (products.length > 0) setProductsList(products);
+  }, [products]);
+
+  React.useEffect(() => {
+    if (createOpen) {
+      fetchProducts();
+    }
+  }, [createOpen, fetchProducts]);
 
   const filteredMovements = React.useMemo(() => {
     return movements.filter((m) => {
@@ -135,9 +214,8 @@ export function MovementsClient({
     }
     setCreateSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/movements/", {
+      const res = await apiFetch("/api/inventory/movements/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product: parseInt(createForm.product, 10),
           movement_type: createForm.movement_type,
@@ -160,10 +238,7 @@ export function MovementsClient({
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to record movement");
+        toast.error(formatApiError(errorData, "Failed to record movement"));
       }
     } catch (err) {
       console.error(err);
@@ -261,14 +336,16 @@ export function MovementsClient({
             </CardDescription>
           </div>
           <CardAction className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="text-xs gap-1.5"
-              onClick={() => setCreateOpen(true)}
-            >
-              <PlusIcon className="size-3.5" />
-              Record Movement
-            </Button>
+            {canManageInventory && (
+              <Button
+                size="sm"
+                className="text-xs gap-1.5"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="size-3.5" />
+                Record Movement
+              </Button>
+            )}
           </CardAction>
         </CardHeader>
 
@@ -299,7 +376,11 @@ export function MovementsClient({
             </Select>
           </div>
 
-          {filteredMovements.length === 0 ? (
+          {loadingMovements ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">
+              Loading stock movements...
+            </div>
+          ) : filteredMovements.length === 0 ? (
             <div className="py-16 flex flex-col items-center justify-center text-center px-4">
               <ArrowLeftRightIcon className="size-12 text-muted-foreground/30 mb-3" />
               <h3 className="text-base font-semibold text-foreground">
@@ -427,6 +508,36 @@ export function MovementsClient({
               </Table>
             </div>
           )}
+
+          {movementCount > 0 && (
+            <div className="flex items-center justify-between border-t px-6 py-4">
+              <p className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Previous page"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page === 1 || loadingMovements}
+                >
+                  <ChevronLeftIcon />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Next page"
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages, current + 1))
+                  }
+                  disabled={page === totalPages || loadingMovements}
+                >
+                  <ChevronRightIcon />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -461,14 +572,31 @@ export function MovementsClient({
                   <SelectValue placeholder="Choose product..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name} {p.sku ? `(${p.sku})` : ""}{" "}
-                      {typeof p.quantity_in_stock === "number"
-                        ? `— Stock: ${p.quantity_in_stock}`
-                        : ""}
-                    </SelectItem>
-                  ))}
+                  {productsList.length === 0 ? (
+                    <div className="p-3 text-center flex flex-col items-center gap-1.5">
+                      <p className="text-xs text-muted-foreground">
+                        No products available
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-6 text-xs px-2"
+                        onClick={() => openQuickCreate("product")}
+                      >
+                        + Add Product
+                      </Button>
+                    </div>
+                  ) : (
+                    productsList.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.name} {p.sku ? `(${p.sku})` : ""}{" "}
+                        {typeof p.quantity_in_stock === "number"
+                          ? `— Stock: ${p.quantity_in_stock}`
+                          : ""}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

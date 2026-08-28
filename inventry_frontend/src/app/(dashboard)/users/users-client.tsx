@@ -59,6 +59,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 
 export interface ManagedUser {
   id: number;
@@ -66,8 +67,6 @@ export interface ManagedUser {
   email: string;
   name: string;
   role: "Admin" | "Staff" | "Member";
-  is_superuser: boolean;
-  is_staff: boolean;
   is_active: boolean;
   date_joined: string;
 }
@@ -77,20 +76,20 @@ export function UsersClient({
   currentUserId,
 }: {
   initialUsers: ManagedUser[];
-  currentUserId: number;
+  currentUserId?: number;
 }) {
   const router = useRouter();
   const [users, setUsers] = React.useState<ManagedUser[]>(initialUsers);
   const [search, setSearch] = React.useState("");
   const [roleFilter, setRoleFilter] = React.useState("ALL");
 
-  // Edit Role State
+  // Edit Role Modal State
   const [editUser, setEditUser] = React.useState<ManagedUser | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<string>("Member");
   const [editOpen, setEditOpen] = React.useState(false);
   const [editSubmitting, setEditSubmitting] = React.useState(false);
+  const [selectedRole, setSelectedRole] = React.useState<string>("Member");
 
-  // Delete State
+  // Delete Modal State
   const [deleteUser, setDeleteUser] = React.useState<ManagedUser | null>(null);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
@@ -99,22 +98,28 @@ export function UsersClient({
     setUsers(initialUsers);
   }, [initialUsers]);
 
+  // Derived Counts
+  const counts = React.useMemo(() => {
+    const total = users.length;
+    const admins = users.filter((u) => u.role === "Admin").length;
+    const staff = users.filter((u) => u.role === "Staff").length;
+    const members = users.filter((u) => u.role === "Member").length;
+    return { total, admins, staff, members };
+  }, [users]);
+
+  // Filtered users
   const filteredUsers = React.useMemo(() => {
     return users.filter((u) => {
-      const query = search.toLowerCase();
-      const matchesSearch =
-        u.username.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query) ||
-        u.name.toLowerCase().includes(query);
+      const matchSearch =
+        u.username.toLowerCase().includes(search.toLowerCase()) ||
+        u.email.toLowerCase().includes(search.toLowerCase()) ||
+        u.name.toLowerCase().includes(search.toLowerCase());
 
-      const matchesRole = roleFilter === "ALL" || u.role === roleFilter;
-      return matchesSearch && matchesRole;
+      const matchRole = roleFilter === "ALL" || u.role === roleFilter;
+
+      return matchSearch && matchRole;
     });
   }, [users, search, roleFilter]);
-
-  const adminCount = users.filter((u) => u.role === "Admin").length;
-  const staffCount = users.filter((u) => u.role === "Staff").length;
-  const memberCount = users.filter((u) => u.role === "Member").length;
 
   const openEditDialog = (user: ManagedUser) => {
     setEditUser(user);
@@ -128,9 +133,8 @@ export function UsersClient({
 
     setEditSubmitting(true);
     try {
-      const res = await fetch(`/api/auth/users/${editUser.id}/`, {
+      const res = await apiFetch(`/api/auth/users/${editUser.id}/`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: selectedRole }),
       });
 
@@ -148,7 +152,7 @@ export function UsersClient({
         router.refresh();
       } else {
         const err = await res.json();
-        toast.error(err.error || err.detail || "Failed to update role");
+        toast.error(formatApiError(err, "Failed to update role"));
       }
     } catch (err) {
       console.error(err);
@@ -172,7 +176,7 @@ export function UsersClient({
 
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/api/auth/users/${deleteUser.id}/`, {
+      const res = await apiFetch(`/api/auth/users/${deleteUser.id}/`, {
         method: "DELETE",
       });
 
@@ -182,8 +186,8 @@ export function UsersClient({
         setDeleteOpen(false);
         router.refresh();
       } else {
-        const err = await res.json();
-        toast.error(err.error || err.detail || "Failed to delete user");
+        const err = await res.json().catch(() => ({}));
+        toast.error(formatApiError(err, "Failed to delete user"));
       }
     } catch (err) {
       console.error(err);
@@ -221,7 +225,7 @@ export function UsersClient({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-              {adminCount}
+              {counts.admins}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Full administrative privileges
@@ -238,7 +242,7 @@ export function UsersClient({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {staffCount}
+              {counts.staff}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Operational inventory management
@@ -254,7 +258,7 @@ export function UsersClient({
             <UserCheckIcon className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{memberCount}</div>
+            <div className="text-2xl font-bold">{counts.members}</div>
             <p className="text-xs text-muted-foreground mt-1">
               View & standard access
             </p>
@@ -330,7 +334,7 @@ export function UsersClient({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((u, index) => {
+                  filteredUsers.map((u) => {
                     const isCurrent = u.id === currentUserId;
                     return (
                       <TableRow key={u.id}>
@@ -392,14 +396,12 @@ export function UsersClient({
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {new Date(u.date_joined).toLocaleDateString(
-                            undefined,
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )}
+                          {new Intl.DateTimeFormat("en-US", {
+                            timeZone: "UTC",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }).format(new Date(u.date_joined))}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -476,19 +478,22 @@ export function UsersClient({
                   <SelectTrigger id="role">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">
-                      <div className="flex flex-col text-left">
+                  <SelectContent
+                    className="max-w-[calc(100vw-2rem)]"
+                    style={{ width: "min(300px, calc(100vw - 2rem))" }}
+                  >
+                    <SelectItem value="Admin" className="py-2.5">
+                      <div className="flex flex-col text-left whitespace-normal">
                         <span className="font-semibold text-rose-600 dark:text-rose-400">
                           Admin (Superuser)
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          Full system control, user management, all models
+                          Full system control
                         </span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Staff">
-                      <div className="flex flex-col text-left">
+                    <SelectItem value="Staff" className="py-2.5">
+                      <div className="flex flex-col text-left whitespace-normal">
                         <span className="font-semibold text-blue-600 dark:text-blue-400">
                           Staff
                         </span>
@@ -497,8 +502,8 @@ export function UsersClient({
                         </span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Member">
-                      <div className="flex flex-col text-left">
+                    <SelectItem value="Member" className="py-2.5">
+                      <div className="flex flex-col text-left whitespace-normal">
                         <span className="font-semibold text-foreground">
                           Member
                         </span>

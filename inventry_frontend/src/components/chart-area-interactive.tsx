@@ -27,6 +27,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { apiFetch } from "@/lib/api-client";
 
 interface StockFlowPoint {
   date: string;
@@ -47,13 +48,15 @@ const chartConfig = {
 
 export function ChartAreaInteractive({
   initialDays = "30d",
+  initialData = [],
 }: {
   initialDays?: string;
+  initialData?: StockFlowPoint[];
 }) {
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = React.useState(initialDays);
-  const [data, setData] = React.useState<StockFlowPoint[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [data, setData] = React.useState<StockFlowPoint[]>(initialData);
+  const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (isMobile && timeRange === "90d") {
@@ -62,16 +65,16 @@ export function ChartAreaInteractive({
   }, [isMobile, timeRange]);
 
   React.useEffect(() => {
+    if (timeRange === initialDays) return;
+
     let isMounted = true;
     async function loadFlowData() {
       setLoading(true);
       const days = timeRange === "7d" ? "7" : timeRange === "90d" ? "90" : "30";
       try {
-        const res = await fetch(
-          `/api/inventory/analytics/stock-flow/?days=${days}`,
-          {
-            headers: { Accept: "application/json" },
-          },
+        const res = await apiFetch(
+          `/api/inventory/analytics/stock-flow?days=${days}`,
+          { headers: { Accept: "application/json" } },
         );
         if (res.ok) {
           const json = await res.json();
@@ -90,7 +93,7 @@ export function ChartAreaInteractive({
     return () => {
       isMounted = false;
     };
-  }, [timeRange]);
+  }, [initialDays, timeRange]);
 
   const totalIn = React.useMemo(
     () => data.reduce((acc, curr) => acc + (curr.stock_in || 0), 0),

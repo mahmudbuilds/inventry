@@ -1,4 +1,5 @@
 from rest_framework import generics, status, filters
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Category, Supplier, Product, StockMovement
@@ -19,18 +20,19 @@ from .serializers import (
     DashboardOverviewSerializer,
     StockFlowPointSerializer,
 )
+from .permissions import InventoryPermission
 from django.db.models.functions import Coalesce, TruncDay
 from django.db.models import F, Sum, Count, Avg, ExpressionWrapper, FloatField, Q, Value
 from django.db import transaction
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 # Create your views here.
 
 
 class CategoryListCreateView(generics.ListCreateAPIView):
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "description"]
     ordering_fields = ["name", "product_count", "total_stock", "average_price"]
@@ -40,7 +42,9 @@ class CategoryListCreateView(generics.ListCreateAPIView):
         return Category.objects.annotate(
             product_count=Count("products"),
             total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
-            average_price=Coalesce(Avg("products__unit_price"), Value(0.0)),
+            average_price=Coalesce(
+                Avg("products__unit_price"), Value(0.0), output_field=FloatField()
+            ),
         ).order_by("name")
 
 
@@ -48,36 +52,48 @@ class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.annotate(
         product_count=Count("products"),
         total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
-        average_price=Coalesce(Avg("products__unit_price"), Value(0.0)),
+        average_price=Coalesce(
+            Avg("products__unit_price"), Value(0.0), output_field=FloatField()
+        ),
     )
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
 
 class SupplierListCreateView(generics.ListCreateAPIView):
     serializer_class = SupplierSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "contact_email", "phone"]
     ordering_fields = ["name", "product_count"]
     ordering = ["name"]
 
     def get_queryset(self):
-        return Supplier.objects.annotate(product_count=Count("products")).order_by("name")
+        return Supplier.objects.annotate(product_count=Count("products")).order_by(
+            "name"
+        )
 
 
 class SupplierDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Supplier.objects.annotate(product_count=Count("products"))
     serializer_class = SupplierSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
 
 class ProductListCreateView(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "sku", "category__name", "supplier__name"]
-    ordering_fields = ["id", "name", "sku", "unit_price", "quantity_in_stock", "reorder_level", "created_at"]
+    ordering_fields = [
+        "id",
+        "name",
+        "sku",
+        "unit_price",
+        "quantity_in_stock",
+        "reorder_level",
+        "created_at",
+    ]
     ordering = ["-id"]
 
     def get_queryset(self):
@@ -91,7 +107,9 @@ class ProductListCreateView(generics.ListCreateAPIView):
         if supplier_id:
             queryset = queryset.filter(supplier_id=supplier_id)
         if stock_status == "LOW":
-            queryset = queryset.filter(quantity_in_stock__lte=F("reorder_level"), quantity_in_stock__gt=0)
+            queryset = queryset.filter(
+                quantity_in_stock__lte=F("reorder_level"), quantity_in_stock__gt=0
+            )
         elif stock_status == "OUT":
             queryset = queryset.filter(quantity_in_stock__lte=0)
         elif stock_status == "OK":
@@ -108,7 +126,9 @@ class ProductListCreateView(generics.ListCreateAPIView):
                 product=product,
                 movement_type="IN",
                 quantity=initial_stock,
-                performed_by=self.request.user if self.request.user.is_authenticated else None,
+                performed_by=(
+                    self.request.user if self.request.user.is_authenticated else None
+                ),
                 notes="Initial inventory setup",
             )
 
@@ -116,13 +136,13 @@ class ProductListCreateView(generics.ListCreateAPIView):
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all().select_related("category", "supplier")
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
 
 class StockMovementCreateView(generics.CreateAPIView):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [InventoryPermission]
 
     @transaction.atomic()
     def perform_create(self, serializer):
@@ -145,16 +165,41 @@ class StockMovementCreateView(generics.CreateAPIView):
         serializer.save(performed_by=self.request.user)
 
 
+class StockMovementPagination(PageNumberPagination):
+    page_size = 20
+
+
 class StockMovementListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StockMovementSerializer
+    pagination_class = StockMovementPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["product__name", "product__sku", "notes", "performed_by__username"]
     ordering_fields = ["timestamp", "quantity", "movement_type"]
     ordering = ["-timestamp"]
 
+    def paginate_queryset(self, queryset):
+        # Dashboard requests use limit for a small unpaginated activity preview.
+        if self.request.query_params.get("limit"):
+            return None
+        return super().paginate_queryset(queryset)
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        limit = self.request.query_params.get("limit")
+        if limit:
+            try:
+                return queryset[: max(1, int(limit))]
+            except ValueError:
+                raise ValidationError({"limit": "Must be an integer."})
+        return queryset
+
     def get_queryset(self):
-        queryset = StockMovement.objects.all().select_related("product", "performed_by").order_by("-timestamp")
+        queryset = (
+            StockMovement.objects.all()
+            .select_related("product", "performed_by")
+            .order_by("-timestamp")
+        )
         product_id = self.request.query_params.get("product")
         movement_type = self.request.query_params.get("movement_type")
         if product_id:
@@ -162,12 +207,6 @@ class StockMovementListView(generics.ListAPIView):
         if movement_type:
             queryset = queryset.filter(movement_type=movement_type)
 
-        limit = self.request.query_params.get("limit")
-        if limit:
-            try:
-                queryset = queryset[: max(1, int(limit))]
-            except ValueError:
-                raise ValidationError({"limit": "Must be an integer."})
         return queryset
 
 
@@ -175,7 +214,6 @@ class StockMovementDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
-
 
 
 class LowStockAnalyticsView(generics.ListAPIView):
@@ -222,7 +260,9 @@ class CategorySummaryView(generics.ListAPIView):
         return Category.objects.annotate(
             product_count=Count("products"),
             total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
-            average_price=Coalesce(Avg("products__unit_price"), Value(0.0)),
+            average_price=Coalesce(
+                Avg("products__unit_price"), Value(0.0), output_field=FloatField()
+            ),
         ).order_by("name")
 
 
@@ -354,7 +394,10 @@ class StockFlowTrendsView(generics.ListAPIView):
         except ValueError:
             raise ValidationError({"days": "Must be an integer."})
 
-        start = timezone.now() - timedelta(days=days)
+        today = timezone.localdate()
+        start = timezone.make_aware(
+            datetime.combine(today - timedelta(days=days), datetime.min.time())
+        )
         return (
             StockMovement.objects.filter(timestamp__gte=start)
             .annotate(day=TruncDay("timestamp"))
@@ -384,7 +427,6 @@ class StockFlowTrendsView(generics.ListAPIView):
 
 class RegisterView(APIView):
     def post(self, request):
-        print(request.data)
         username = request.data.get("username")
         email = request.data.get("email")
         password = request.data.get("password")

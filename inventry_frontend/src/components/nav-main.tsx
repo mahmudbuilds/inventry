@@ -26,6 +26,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useQuickCreate } from "@/context/quick-create-context";
+import { useUserRole } from "@/context/user-role-context";
 
 export function NavMain({
   items,
@@ -38,13 +39,15 @@ export function NavMain({
 }) {
   const pathname = usePathname();
   const { open } = useQuickCreate();
+  const { canManageInventory } = useUserRole();
 
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
+          {canManageInventory && (
+            <SidebarMenuItem>
+              <DropdownMenu>
               <DropdownMenuTrigger
                 className="w-full"
                 render={
@@ -99,8 +102,9 @@ export function NavMain({
                   <span>Add Category</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
         <SidebarMenu>
           {items.map((item) => (

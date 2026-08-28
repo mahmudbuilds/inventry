@@ -51,6 +51,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiFetch, formatApiError } from "@/lib/api-client";
+import { useUserRole } from "@/context/user-role-context";
 
 export interface SupplierItem {
   id: number;
@@ -66,6 +68,7 @@ export function SuppliersClient({
   initialSuppliers: SupplierItem[];
 }) {
   const router = useRouter();
+  const { canManageInventory, canDeleteInventory } = useUserRole();
   const [suppliers, setSuppliers] =
     React.useState<SupplierItem[]>(initialSuppliers);
   const [search, setSearch] = React.useState("");
@@ -120,9 +123,8 @@ export function SuppliersClient({
     e.preventDefault();
     setCreateSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/suppliers/", {
+      const res = await apiFetch("/api/inventory/suppliers/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm),
       });
 
@@ -133,10 +135,7 @@ export function SuppliersClient({
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to create supplier");
+        toast.error(formatApiError(errorData, "Failed to create supplier"));
       }
     } catch (err) {
       console.error(err);
@@ -161,18 +160,21 @@ export function SuppliersClient({
     if (!editSupplier) return;
     setEditSubmitting(true);
     try {
-      const res = await fetch(`/api/inventory/suppliers/${editSupplier.id}/`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
+      const res = await apiFetch(
+        `/api/inventory/suppliers/${editSupplier.id}/`,
+        {
+          method: "PUT",
+          body: JSON.stringify(editForm),
+        },
+      );
 
       if (res.ok) {
         toast.success(`Supplier "${editForm.name}" updated successfully!`);
         setEditOpen(false);
         router.refresh();
       } else {
-        toast.error("Failed to update supplier");
+        const errJson = await res.json();
+        toast.error(formatApiError(errJson, "Failed to update supplier"));
       }
     } catch (err) {
       console.error(err);
@@ -186,7 +188,7 @@ export function SuppliersClient({
     if (!deleteSupplier) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/inventory/suppliers/${deleteSupplier.id}/`,
         {
           method: "DELETE",
@@ -200,7 +202,8 @@ export function SuppliersClient({
         setDeleteOpen(false);
         router.refresh();
       } else {
-        toast.error("Failed to delete supplier");
+        const errJson = await res.json().catch(() => ({}));
+        toast.error(formatApiError(errJson, "Failed to delete supplier"));
       }
     } catch (err) {
       console.error(err);
@@ -275,14 +278,16 @@ export function SuppliersClient({
             </CardDescription>
           </div>
           <CardAction className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="text-xs gap-1.5"
-              onClick={() => setCreateOpen(true)}
-            >
-              <PlusIcon className="size-3.5" />
-              Add Supplier
-            </Button>
+            {canManageInventory && (
+              <Button
+                size="sm"
+                className="text-xs gap-1.5"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="size-3.5" />
+                Add Supplier
+              </Button>
+            )}
           </CardAction>
         </CardHeader>
 
@@ -308,14 +313,16 @@ export function SuppliersClient({
                   ? "No suppliers match your search term."
                   : "Register your vendor partners to link them with products."}
               </p>
-              <Button
-                size="sm"
-                className="mt-4 text-xs gap-1.5"
-                onClick={() => setCreateOpen(true)}
-              >
-                <PlusIcon className="size-3.5" />
-                Add Supplier
-              </Button>
+              {canManageInventory && (
+                <Button
+                  size="sm"
+                  className="mt-4 text-xs gap-1.5"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <PlusIcon className="size-3.5" />
+                  Add Supplier
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -388,24 +395,30 @@ export function SuppliersClient({
                             <DropdownMenuLabel className="text-xs">
                               Options
                             </DropdownMenuLabel>
-                            <DropdownMenuItem
-                              className="text-xs gap-2 cursor-pointer"
-                              onClick={() => openEdit(s)}
-                            >
-                              <PencilIcon className="size-3.5 text-muted-foreground" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-xs gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
-                              onClick={() => {
-                                setDeleteSupplier(s);
-                                setDeleteOpen(true);
-                              }}
-                            >
-                              <Trash2Icon className="size-3.5" />
-                              Delete
-                            </DropdownMenuItem>
+                            {canManageInventory && (
+                              <DropdownMenuItem
+                                className="text-xs gap-2 cursor-pointer"
+                                onClick={() => openEdit(s)}
+                              >
+                                <PencilIcon className="size-3.5 text-muted-foreground" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteInventory && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-xs gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
+                                  onClick={() => {
+                                    setDeleteSupplier(s);
+                                    setDeleteOpen(true);
+                                  }}
+                                >
+                                  <Trash2Icon className="size-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

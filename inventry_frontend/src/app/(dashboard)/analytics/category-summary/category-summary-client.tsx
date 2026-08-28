@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {useState, useMemo} from "react";
 
 export interface CategorySummaryItem {
   id: number;
@@ -41,10 +42,10 @@ export function CategorySummaryClient({
 }: {
   initialCategories: CategorySummaryItem[];
 }) {
-  const [categories] = React.useState<CategorySummaryItem[]>(initialCategories);
-  const [search, setSearch] = React.useState("");
+  const [categories] = useState<CategorySummaryItem[]>(initialCategories);
+  const [search, setSearch] = useState("");
 
-  const filteredCategories = React.useMemo(() => {
+  const filteredCategories = useMemo(() => {
     return categories.filter((c) => {
       return (
         c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -53,15 +54,15 @@ export function CategorySummaryClient({
     });
   }, [categories, search]);
 
-  const totalSKUs = React.useMemo(
+  const totalSKUs = useMemo(
     () => categories.reduce((acc, curr) => acc + (curr.product_count || 0), 0),
     [categories],
   );
-  const totalStockUnits = React.useMemo(
+  const totalStockUnits = useMemo(
     () => categories.reduce((acc, curr) => acc + (curr.total_stock || 0), 0),
     [categories],
   );
-  const totalValuation = React.useMemo(() => {
+  const totalValuation = useMemo(() => {
     return categories.reduce((acc, curr) => {
       const units = curr.total_stock || 0;
       const avg = curr.average_price || 0;

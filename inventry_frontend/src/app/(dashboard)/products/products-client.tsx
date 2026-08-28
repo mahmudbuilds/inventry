@@ -59,7 +59,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 import { useQuickCreate } from "@/context/quick-create-context";
+import { useUserRole } from "@/context/user-role-context";
 
 export interface ProductItem {
   id: number;
@@ -92,12 +94,44 @@ export function ProductsClient({
 }) {
   const router = useRouter();
   const { open: openQuickCreate } = useQuickCreate();
+  const { canManageInventory, canDeleteInventory } = useUserRole();
 
   const [products, setProducts] =
     React.useState<ProductItem[]>(initialProducts);
+  const [categoriesList, setCategoriesList] =
+    React.useState<OptionItem[]>(categories);
+  const [suppliersList, setSuppliersList] =
+    React.useState<OptionItem[]>(suppliers);
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState("ALL");
   const [stockStatusFilter, setStockStatusFilter] = React.useState("ALL");
+
+  const fetchOptions = React.useCallback(async () => {
+    try {
+      const [catsRes, supsRes] = await Promise.all([
+        apiFetch("/api/inventory/categories/"),
+        apiFetch("/api/inventory/suppliers/"),
+      ]);
+      if (catsRes.ok) {
+        const catData = await catsRes.json();
+        setCategoriesList(
+          Array.isArray(catData) ? catData : catData.results || [],
+        );
+      }
+      if (supsRes.ok) {
+        const supData = await supsRes.json();
+        setSuppliersList(
+          Array.isArray(supData) ? supData : supData.results || [],
+        );
+      }
+    } catch (err) {
+      console.error("Failed to refresh options in products client", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchOptions();
+  }, [fetchOptions]);
 
   // Create Product Dialog State
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -149,6 +183,20 @@ export function ProductsClient({
     setProducts(initialProducts);
   }, [initialProducts]);
 
+  React.useEffect(() => {
+    if (categories.length > 0) setCategoriesList(categories);
+  }, [categories]);
+
+  React.useEffect(() => {
+    if (suppliers.length > 0) setSuppliersList(suppliers);
+  }, [suppliers]);
+
+  React.useEffect(() => {
+    if (createOpen || editOpen) {
+      fetchOptions();
+    }
+  }, [createOpen, editOpen, fetchOptions]);
+
   // Filtered products list
   const filteredProducts = React.useMemo(() => {
     return products.filter((p) => {
@@ -194,9 +242,8 @@ export function ProductsClient({
         payload.supplier = parseInt(createForm.supplier, 10);
       }
 
-      const res = await fetch("/api/inventory/products/", {
+      const res = await apiFetch("/api/inventory/products/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -215,10 +262,7 @@ export function ProductsClient({
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to create product");
+        toast.error(formatApiError(errorData, "Failed to create product"));
       }
     } catch (err) {
       console.error(err);
@@ -261,9 +305,8 @@ export function ProductsClient({
         payload.supplier = null;
       }
 
-      const res = await fetch(`/api/inventory/products/${editProduct.id}/`, {
+      const res = await apiFetch(`/api/inventory/products/${editProduct.id}/`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -272,8 +315,8 @@ export function ProductsClient({
         setEditOpen(false);
         router.refresh();
       } else {
-        const _errJson = await res.json();
-        toast.error("Failed to update product");
+        const errJson = await res.json();
+        toast.error(formatApiError(errJson, "Failed to update product"));
       }
     } catch (err) {
       console.error(err);
@@ -288,16 +331,20 @@ export function ProductsClient({
     if (!deleteProduct) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/api/inventory/products/${deleteProduct.id}/`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/inventory/products/${deleteProduct.id}/`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (res.ok) {
         toast.success(`Product "${deleteProduct.name}" deleted successfully!`);
         setDeleteOpen(false);
         router.refresh();
       } else {
-        toast.error("Failed to delete product");
+        const errJson = await res.json().catch(() => ({}));
+        toast.error(formatApiError(errJson, "Failed to delete product"));
       }
     } catch (err) {
       console.error(err);
@@ -313,9 +360,8 @@ export function ProductsClient({
     if (!movementProduct) return;
     setMovementSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/movements/", {
+      const res = await apiFetch("/api/inventory/movements/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product: movementProduct.id,
           movement_type: movementForm.movement_type,
@@ -330,10 +376,7 @@ export function ProductsClient({
         router.refresh();
       } else {
         const errorData = await res.json();
-        const msg = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(" ") : v}`)
-          .join(" | ");
-        toast.error(msg || "Failed to record movement");
+        toast.error(formatApiError(errorData, "Failed to record movement"));
       }
     } catch (err) {
       console.error(err);
@@ -358,14 +401,16 @@ export function ProductsClient({
             </CardDescription>
           </div>
           <CardAction className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="text-xs gap-1.5"
-              onClick={() => setCreateOpen(true)}
-            >
-              <PlusIcon className="size-3.5" />
-              Add Product
-            </Button>
+            {canManageInventory && (
+              <Button
+                size="sm"
+                className="text-xs gap-1.5"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="size-3.5" />
+                Add Product
+              </Button>
+            )}
           </CardAction>
         </CardHeader>
 
@@ -391,7 +436,7 @@ export function ProductsClient({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Categories</SelectItem>
-                  {categories.map((c) => (
+                  {categoriesList.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.name}
                     </SelectItem>
@@ -434,14 +479,16 @@ export function ProductsClient({
                   ? "No products match your active search filters."
                   : "Start by creating your first product item."}
               </p>
-              <Button
-                size="sm"
-                className="mt-4 text-xs gap-1.5"
-                onClick={() => setCreateOpen(true)}
-              >
-                <PlusIcon className="size-3.5" />
-                Add Product
-              </Button>
+              {canManageInventory && (
+                <Button
+                  size="sm"
+                  className="mt-4 text-xs gap-1.5"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <PlusIcon className="size-3.5" />
+                  Add Product
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -549,23 +596,25 @@ export function ProductsClient({
                         </TableCell>
                         <TableCell className="text-right pr-6">
                           <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="size-8"
-                              title="Record In/Out Movement"
-                              onClick={() => {
-                                setMovementProduct(p);
-                                setMovementForm({
-                                  movement_type: "IN",
-                                  quantity: "10",
-                                  notes: "",
-                                });
-                                setMovementOpen(true);
-                              }}
-                            >
-                              <ArrowLeftRightIcon className="size-3.5 text-primary" />
-                            </Button>
+                            {canManageInventory && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-8"
+                                title="Record In/Out Movement"
+                                onClick={() => {
+                                  setMovementProduct(p);
+                                  setMovementForm({
+                                    movement_type: "IN",
+                                    quantity: "10",
+                                    notes: "",
+                                  });
+                                  setMovementOpen(true);
+                                }}
+                              >
+                                <ArrowLeftRightIcon className="size-3.5 text-primary" />
+                              </Button>
+                            )}
 
                             <DropdownMenu>
                               <DropdownMenuTrigger
@@ -583,39 +632,47 @@ export function ProductsClient({
                                 <DropdownMenuLabel className="text-xs">
                                   Options
                                 </DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  className="text-xs gap-2 cursor-pointer"
-                                  onClick={() => openEdit(p)}
-                                >
-                                  <PencilIcon className="size-3.5 text-muted-foreground" />
-                                  Edit Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-xs gap-2 cursor-pointer"
-                                  onClick={() => {
-                                    setMovementProduct(p);
-                                    setMovementForm({
-                                      movement_type: "IN",
-                                      quantity: "10",
-                                      notes: "",
-                                    });
-                                    setMovementOpen(true);
-                                  }}
-                                >
-                                  <ArrowLeftRightIcon className="size-3.5 text-muted-foreground" />
-                                  Record Stock
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-xs gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
-                                  onClick={() => {
-                                    setDeleteProduct(p);
-                                    setDeleteOpen(true);
-                                  }}
-                                >
-                                  <Trash2Icon className="size-3.5" />
-                                  Delete Product
-                                </DropdownMenuItem>
+                                {canManageInventory && (
+                                  <>
+                                    <DropdownMenuItem
+                                      className="text-xs gap-2 cursor-pointer"
+                                      onClick={() => openEdit(p)}
+                                    >
+                                      <PencilIcon className="size-3.5 text-muted-foreground" />
+                                      Edit Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-xs gap-2 cursor-pointer"
+                                      onClick={() => {
+                                        setMovementProduct(p);
+                                        setMovementForm({
+                                          movement_type: "IN",
+                                          quantity: "10",
+                                          notes: "",
+                                        });
+                                        setMovementOpen(true);
+                                      }}
+                                    >
+                                      <ArrowLeftRightIcon className="size-3.5 text-muted-foreground" />
+                                      Record Stock
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {canDeleteInventory && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-xs gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
+                                      onClick={() => {
+                                        setDeleteProduct(p);
+                                        setDeleteOpen(true);
+                                      }}
+                                    >
+                                      <Trash2Icon className="size-3.5" />
+                                      Delete Product
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -708,14 +765,31 @@ export function ProductsClient({
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
+                    {categoriesList.length === 0 ? (
+                      <div className="p-3 text-center flex flex-col items-center gap-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          No categories found
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 text-xs px-2"
+                          onClick={() => openQuickCreate("category")}
+                        >
+                          + Add Category
+                        </Button>
+                      </div>
+                    ) : (
+                      categoriesList.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -731,10 +805,11 @@ export function ProductsClient({
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="None / Select" />
+                    <SelectValue placeholder="None / Select Supplier" />
                   </SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((s) => (
+                    <SelectItem value="">None / Unassigned</SelectItem>
+                    {suppliersList.map((s) => (
                       <SelectItem key={s.id} value={String(s.id)}>
                         {s.name}
                       </SelectItem>
@@ -878,14 +953,31 @@ export function ProductsClient({
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
+                    {categoriesList.length === 0 ? (
+                      <div className="p-3 text-center flex flex-col items-center gap-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          No categories found
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 text-xs px-2"
+                          onClick={() => openQuickCreate("category")}
+                        >
+                          + Add Category
+                        </Button>
+                      </div>
+                    ) : (
+                      categoriesList.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -901,10 +993,11 @@ export function ProductsClient({
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="None / Select" />
+                    <SelectValue placeholder="None / Select Supplier" />
                   </SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((s) => (
+                    <SelectItem value="">None / Unassigned</SelectItem>
+                    {suppliersList.map((s) => (
                       <SelectItem key={s.id} value={String(s.id)}>
                         {s.name}
                       </SelectItem>

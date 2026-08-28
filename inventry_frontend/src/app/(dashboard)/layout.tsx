@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { QuickCreateDrawer } from "@/components/quick-create-drawer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { QuickCreateProvider } from "@/context/quick-create-context";
+import { UserRoleProvider, type UserRole } from "@/context/user-role-context";
 import { fetchWithAuth } from "@/lib/api";
 
 async function getUser() {
@@ -32,19 +33,21 @@ export default async function DashboardLayout({
   }
 
   return (
-    <QuickCreateProvider>
-      <SidebarProvider
-        style={
-          {
-            "--sidebar-width": "calc(var(--spacing) * 72)",
-            "--header-height": "calc(var(--spacing) * 12)",
-          } as React.CSSProperties
-        }
-      >
-        <AppSidebar variant="inset" user={user} />
-        {children}
-        <QuickCreateDrawer />
-      </SidebarProvider>
-    </QuickCreateProvider>
+    <UserRoleProvider role={user.role as UserRole}>
+      <QuickCreateProvider>
+        <SidebarProvider
+          style={
+            {
+              "--sidebar-width": "calc(var(--spacing) * 72)",
+              "--header-height": "calc(var(--spacing) * 12)",
+            } as React.CSSProperties
+          }
+        >
+          <AppSidebar variant="inset" user={user} />
+          {children}
+          <QuickCreateDrawer />
+        </SidebarProvider>
+      </QuickCreateProvider>
+    </UserRoleProvider>
   );
 }

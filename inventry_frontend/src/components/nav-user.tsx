@@ -29,6 +29,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { apiFetch } from "@/lib/api-client";
 
 export interface UserType {
   name: string;
@@ -50,9 +51,8 @@ export function NavUser({ user }: { user: UserType | null }) {
   async function handleLogout() {
     setIsLoggingOut(true);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout/`, {
+      await apiFetch("/api/auth/logout/", {
         method: "POST",
-        credentials: "include",
       });
     } catch (err) {
       console.error("Logout error:", err);
