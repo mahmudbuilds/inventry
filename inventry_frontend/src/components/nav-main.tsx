@@ -48,60 +48,60 @@ export function NavMain({
           {canManageInventory && (
             <SidebarMenuItem>
               <DropdownMenu>
-              <DropdownMenuTrigger
-                className="w-full"
-                render={
-                  <SidebarMenuButton
-                    tooltip="Quick Create"
-                    className="w-full justify-between bg-primary font-medium text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-                  />
-                }
-              >
-                <div className="flex items-center gap-2">
-                  <PlusIcon className="size-4" />
-                  <span>Quick Create</span>
-                </div>
-                <ChevronDownIcon className="size-3.5 opacity-80" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                side="bottom"
-                sideOffset={6}
-                className="w-56"
-              >
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Create New...
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => open("product")}
-                  className="flex items-center gap-2 cursor-pointer"
+                <DropdownMenuTrigger
+                  className="w-full"
+                  render={
+                    <SidebarMenuButton
+                      tooltip="Quick Create"
+                      className="w-full justify-between bg-primary font-medium text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                    />
+                  }
                 >
-                  <BoxesIcon className="size-4 text-primary" />
-                  <span>Add Product</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => open("movement")}
-                  className="flex items-center gap-2 cursor-pointer"
+                  <div className="flex items-center gap-2">
+                    <PlusIcon className="size-4" />
+                    <span>Quick Create</span>
+                  </div>
+                  <ChevronDownIcon className="size-3.5 opacity-80" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={6}
+                  className="w-56"
                 >
-                  <ArrowLeftRightIcon className="size-4 text-primary" />
-                  <span>Stock Movement</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => open("supplier")}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <TruckIcon className="size-4 text-primary" />
-                  <span>Add Supplier</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => open("category")}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <TagsIcon className="size-4 text-primary" />
-                  <span>Add Category</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Create New...
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => open("product")}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <BoxesIcon className="size-4 text-primary" />
+                    <span>Add Product</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => open("movement")}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <ArrowLeftRightIcon className="size-4 text-primary" />
+                    <span>Stock Movement</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => open("supplier")}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <TruckIcon className="size-4 text-primary" />
+                    <span>Add Supplier</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => open("category")}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <TagsIcon className="size-4 text-primary" />
+                    <span>Add Category</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
               </DropdownMenu>
             </SidebarMenuItem>
           )}

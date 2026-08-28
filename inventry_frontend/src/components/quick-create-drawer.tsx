@@ -88,15 +88,11 @@ export function QuickCreateDrawer() {
 
       if (catsRes.ok) {
         const catData = await catsRes.json();
-        setCategories(
-          Array.isArray(catData) ? catData : catData.results || [],
-        );
+        setCategories(Array.isArray(catData) ? catData : catData.results || []);
       }
       if (supsRes.ok) {
         const supData = await supsRes.json();
-        setSuppliers(
-          Array.isArray(supData) ? supData : supData.results || [],
-        );
+        setSuppliers(Array.isArray(supData) ? supData : supData.results || []);
       }
       if (prodsRes.ok) {
         const prodData = await prodsRes.json();
@@ -401,7 +397,9 @@ export function QuickCreateDrawer() {
                     <SelectContent>
                       {categories.length === 0 ? (
                         <div className="p-3 text-center flex flex-col items-center gap-1.5">
-                          <p className="text-xs text-muted-foreground">No categories found</p>
+                          <p className="text-xs text-muted-foreground">
+                            No categories found
+                          </p>
                           <Button
                             type="button"
                             size="sm"
@@ -534,7 +532,9 @@ export function QuickCreateDrawer() {
                   <SelectContent>
                     {products.length === 0 ? (
                       <div className="p-3 text-center flex flex-col items-center gap-1.5">
-                        <p className="text-xs text-muted-foreground">No products available</p>
+                        <p className="text-xs text-muted-foreground">
+                          No products available
+                        </p>
                         <Button
                           type="button"
                           size="sm"

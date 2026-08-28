@@ -35,7 +35,8 @@ export async function apiFetch(
   options: RequestInit = {},
   hasRetried = false,
 ): Promise<Response> {
-  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
 
   const headers = new Headers(options.headers);
   if (!isFormData && !headers.has("Content-Type")) {
@@ -49,7 +50,12 @@ export async function apiFetch(
   });
 
   // If unauthorized and we haven't retried yet, attempt silent refresh
-  if (response.status === 401 && !hasRetried && !endpoint.includes("/api/auth/login") && !endpoint.includes("/api/token/refresh/")) {
+  if (
+    response.status === 401 &&
+    !hasRetried &&
+    !endpoint.includes("/api/auth/login") &&
+    !endpoint.includes("/api/token/refresh/")
+  ) {
     if (!isRefreshing) {
       isRefreshing = true;
       const refreshed = await refreshAuthToken();
@@ -60,7 +66,11 @@ export async function apiFetch(
         return apiFetch(endpoint, options, true);
       } else {
         onTokenRefreshed();
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/signup")) {
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.startsWith("/login") &&
+          !window.location.pathname.startsWith("/signup")
+        ) {
           window.location.href = "/login";
         }
         return response;
@@ -81,7 +91,10 @@ export async function apiFetch(
 /**
  * Formats API error payloads (DRF validation dictionaries, string errors, etc.) into clean messages
  */
-export function formatApiError(data: unknown, defaultMsg = "An unexpected error occurred"): string {
+export function formatApiError(
+  data: unknown,
+  defaultMsg = "An unexpected error occurred",
+): string {
   if (!data) return defaultMsg;
   if (typeof data === "string") return data;
 
@@ -102,7 +115,9 @@ export function formatApiError(data: unknown, defaultMsg = "An unexpected error 
     for (const [key, value] of Object.entries(obj)) {
       if (key === "code" || key === "messages") continue;
       if (Array.isArray(value)) {
-        const joined = value.map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(" ");
+        const joined = value
+          .map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v)))
+          .join(" ");
         messages.push(`${key}: ${joined}`);
       } else if (typeof value === "string") {
         messages.push(`${key}: ${value}`);
