@@ -105,9 +105,8 @@ export function LoginForm({
                   {submitting && <Loader2Icon className="animate-spin" />}
                   {submitting ? "Logging in..." : "Login"}
                 </Button>
-
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account?{" "}
+                  Need to create your company?{" "}
                   <Link href="/signup">Sign up</Link>
                 </FieldDescription>
               </Field>

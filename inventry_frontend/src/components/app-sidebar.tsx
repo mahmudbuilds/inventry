@@ -84,11 +84,18 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              className="data-[slot=sidebar-menu-button]:p-1.5"
+              className="data-[slot=sidebar-menu-button]:p-1.5 py-5!"
               render={<Link href="/" />}
             >
               <Image src={logo} alt="Inventry Logo" height={26} width={26} />
-              <span className="text-base font-semibold">Inventry</span>
+              <div className="flex flex-col">
+                <span className="text-base font-semibold">Inventry</span>
+                {user?.company && (
+                  <span className="text-xs text-foreground/70 truncate">
+                    {user.company.name}
+                  </span>
+                )}
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

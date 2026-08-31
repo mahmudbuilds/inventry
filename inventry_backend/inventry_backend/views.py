@@ -3,8 +3,12 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework import status
 from django.conf import settings
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from inventory.models import CompanyMembership, company_for_user
 
 
 class CookieTokenObtainPairView(TokenObtainPairView):
@@ -42,7 +46,9 @@ class CookieTokenObtainPairView(TokenObtainPairView):
 
 class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get("refresh_token") or request.data.get("refresh")
+        refresh_token = request.COOKIES.get("refresh_token") or request.data.get(
+            "refresh"
+        )
         if not refresh_token:
             return Response(
                 {"detail": "Refresh token missing."},
@@ -145,10 +151,21 @@ class CurrentUserView(APIView):
 
     def get(self, request):
         user = request.user
-        role = "Admin" if user.is_superuser else ("Staff" if user.is_staff else "Member")
+        company = company_for_user(user)
+        if company is None:
+            return Response(
+                {"detail": "User is not assigned to a company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        role = (
+            "Admin" if user.is_superuser else ("Staff" if user.is_staff else "Member")
+        )
         name = user.get_full_name()
         if not name:
             name = user.username
+
+        membership = getattr(user, 'company_membership', None)
+        password_change_required = membership.password_change_required if membership else False
 
         return Response(
             {
@@ -157,7 +174,63 @@ class CurrentUserView(APIView):
                 "email": user.email,
                 "name": name,
                 "role": role,
+                "company": {"id": company.id, "name": company.name},
+                "password_change_required": password_change_required,
             },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+
+        if not old_password or not new_password or not confirm_password:
+            return Response(
+                {"error": "All fields are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {"error": "New passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.check_password(old_password):
+            return Response(
+                {"error": "Old password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from django.contrib.auth.password_validation import validate_password
+
+        try:
+            validate_password(new_password)
+        except ValidationError as exc:
+            return Response(
+                {"password": exc.messages if hasattr(exc, 'messages') else list(exc)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(new_password)
+        user.save()
+
+        # Mark password change as complete
+        try:
+            membership = user.company_membership
+            membership.password_change_required = False
+            membership.save()
+        except:
+            pass
+
+        return Response(
+            {"detail": "Password changed successfully."},
             status=status.HTTP_200_OK,
         )
 
@@ -173,7 +246,11 @@ class UserManagementView(APIView):
             )
 
         from django.contrib.auth.models import User
-        users = User.objects.all().order_by("-date_joined")
+
+        company = company_for_user(request.user)
+        users = User.objects.filter(company_membership__company=company).order_by(
+            "-date_joined"
+        )
         search = request.query_params.get("search", "").strip().lower()
 
         user_list = []
@@ -205,6 +282,68 @@ class UserManagementView(APIView):
 
         return Response(user_list, status=status.HTTP_200_OK)
 
+    def post(self, request):
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Only administrators can add users."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        company = company_for_user(request.user)
+        username, email, password = (
+            request.data.get("username"),
+            request.data.get("email"),
+            request.data.get("password"),
+        )
+        role = request.data.get("role", "Member")
+        if not username or not email or not password:
+            return Response(
+                {"error": "Username, email, and password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if role not in ("Admin", "Staff", "Member"):
+            return Response(
+                {"error": "Invalid role."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        if (
+            User.objects.filter(username=username).exists()
+            or User.objects.filter(email=email).exists()
+        ):
+            return Response(
+                {"error": "Username or email already in use."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from django.contrib.auth.password_validation import validate_password
+
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            return Response(
+                {"password": exc.messages if hasattr(exc, "messages") else list(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            is_staff=role in ("Admin", "Staff"),
+            is_superuser=role == "Admin",
+        )
+        CompanyMembership.objects.create(
+            company=company, user=user, password_change_required=True
+        )
+        return Response(
+            {
+                "id": user.id,
+                "username": username,
+                "email": email,
+                "name": username,
+                "role": role,
+                "is_active": user.is_active,
+                "date_joined": user.date_joined.isoformat(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class UserDetailManagementView(APIView):
     permission_classes = [IsAuthenticated]
@@ -217,8 +356,11 @@ class UserDetailManagementView(APIView):
             )
 
         from django.contrib.auth.models import User
+
         try:
-            target_user = User.objects.get(pk=pk)
+            target_user = User.objects.get(
+                pk=pk, company_membership__company=company_for_user(request.user)
+            )
         except User.DoesNotExist:
             return Response(
                 {"error": "User not found."},
@@ -249,7 +391,11 @@ class UserDetailManagementView(APIView):
 
         target_user.save()
 
-        updated_role = "Admin" if target_user.is_superuser else ("Staff" if target_user.is_staff else "Member")
+        updated_role = (
+            "Admin"
+            if target_user.is_superuser
+            else ("Staff" if target_user.is_staff else "Member")
+        )
         return Response(
             {
                 "id": target_user.id,
@@ -274,8 +420,11 @@ class UserDetailManagementView(APIView):
             )
 
         from django.contrib.auth.models import User
+
         try:
-            target_user = User.objects.get(pk=pk)
+            target_user = User.objects.get(
+                pk=pk, company_membership__company=company_for_user(request.user)
+            )
         except User.DoesNotExist:
             return Response(
                 {"error": "User not found."},
@@ -293,5 +442,3 @@ class UserDetailManagementView(APIView):
             {"detail": "User deleted successfully."},
             status=status.HTTP_200_OK,
         )
-
-

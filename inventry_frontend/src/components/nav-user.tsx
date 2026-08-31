@@ -36,6 +36,11 @@ export interface UserType {
   role: string;
   email: string;
   avatar?: string;
+  company?: {
+    id: number;
+    name: string;
+  };
+  password_change_required?: boolean;
 }
 
 export function NavUser({ user }: { user: UserType | null }) {
@@ -124,6 +129,12 @@ export function NavUser({ user }: { user: UserType | null }) {
                         <span className="font-bold">Role</span>:{" "}
                         {capitalize(user.role)}
                       </span>
+                      {user.company && (
+                        <span className="truncate text-xs text-muted-foreground">
+                          <span className="font-bold">Company</span>:{" "}
+                          {user.company.name}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </DropdownMenuLabel>

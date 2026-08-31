@@ -2,10 +2,19 @@ from rest_framework import generics, status, filters
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Category, Supplier, Product, StockMovement
-from rest_framework.exceptions import ValidationError
+from .models import (
+    Category,
+    Supplier,
+    Product,
+    StockMovement,
+    Company,
+    CompanyMembership,
+    company_for_user,
+)
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
 from django.contrib.auth import authenticate
@@ -30,7 +39,17 @@ from datetime import datetime, timedelta
 # Create your views here.
 
 
-class CategoryListCreateView(generics.ListCreateAPIView):
+class TenantMixin:
+    def get_queryset(self):
+        return (
+            super().get_queryset().filter(company=company_for_user(self.request.user))
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(company=company_for_user(self.request.user))
+
+
+class CategoryListCreateView(TenantMixin, generics.ListCreateAPIView):
     serializer_class = CategorySerializer
     permission_classes = [InventoryPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -39,16 +58,20 @@ class CategoryListCreateView(generics.ListCreateAPIView):
     ordering = ["name"]
 
     def get_queryset(self):
-        return Category.objects.annotate(
-            product_count=Count("products"),
-            total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
-            average_price=Coalesce(
-                Avg("products__unit_price"), Value(0.0), output_field=FloatField()
-            ),
-        ).order_by("name")
+        return (
+            Category.objects.filter(company=company_for_user(self.request.user))
+            .annotate(
+                product_count=Count("products"),
+                total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
+                average_price=Coalesce(
+                    Avg("products__unit_price"), Value(0.0), output_field=FloatField()
+                ),
+            )
+            .order_by("name")
+        )
 
 
-class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+class CategoryDetailView(TenantMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.annotate(
         product_count=Count("products"),
         total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
@@ -60,7 +83,7 @@ class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [InventoryPermission]
 
 
-class SupplierListCreateView(generics.ListCreateAPIView):
+class SupplierListCreateView(TenantMixin, generics.ListCreateAPIView):
     serializer_class = SupplierSerializer
     permission_classes = [InventoryPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -69,18 +92,20 @@ class SupplierListCreateView(generics.ListCreateAPIView):
     ordering = ["name"]
 
     def get_queryset(self):
-        return Supplier.objects.annotate(product_count=Count("products")).order_by(
-            "name"
+        return (
+            Supplier.objects.filter(company=company_for_user(self.request.user))
+            .annotate(product_count=Count("products"))
+            .order_by("name")
         )
 
 
-class SupplierDetailView(generics.RetrieveUpdateDestroyAPIView):
+class SupplierDetailView(TenantMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Supplier.objects.annotate(product_count=Count("products"))
     serializer_class = SupplierSerializer
     permission_classes = [InventoryPermission]
 
 
-class ProductListCreateView(generics.ListCreateAPIView):
+class ProductListCreateView(TenantMixin, generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [InventoryPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -97,7 +122,9 @@ class ProductListCreateView(generics.ListCreateAPIView):
     ordering = ["-id"]
 
     def get_queryset(self):
-        queryset = Product.objects.all().select_related("category", "supplier")
+        queryset = Product.objects.filter(
+            company=company_for_user(self.request.user)
+        ).select_related("category", "supplier")
         category_id = self.request.query_params.get("category")
         supplier_id = self.request.query_params.get("supplier")
         stock_status = self.request.query_params.get("stock_status")
@@ -120,7 +147,18 @@ class ProductListCreateView(generics.ListCreateAPIView):
     @transaction.atomic
     def perform_create(self, serializer):
         initial_stock = serializer.validated_data.pop("initial_stock", 0)
-        product = serializer.save(quantity_in_stock=initial_stock)
+        company = company_for_user(self.request.user)
+        category = serializer.validated_data.get("category")
+        supplier = serializer.validated_data.get("supplier")
+        if category and category.company_id != company.id:
+            raise ValidationError(
+                {"category": "Category does not belong to your company."}
+            )
+        if supplier and supplier.company_id != company.id:
+            raise ValidationError(
+                {"supplier": "Supplier does not belong to your company."}
+            )
+        product = serializer.save(company=company, quantity_in_stock=initial_stock)
         if initial_stock > 0:
             StockMovement.objects.create(
                 product=product,
@@ -133,13 +171,13 @@ class ProductListCreateView(generics.ListCreateAPIView):
             )
 
 
-class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
+class ProductDetailView(TenantMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all().select_related("category", "supplier")
     serializer_class = ProductSerializer
     permission_classes = [InventoryPermission]
 
 
-class StockMovementCreateView(generics.CreateAPIView):
+class StockMovementCreateView(TenantMixin, generics.CreateAPIView):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
     permission_classes = [InventoryPermission]
@@ -147,7 +185,9 @@ class StockMovementCreateView(generics.CreateAPIView):
     @transaction.atomic()
     def perform_create(self, serializer):
         product_id = serializer.validated_data["product"].id
-        product = Product.objects.select_for_update().get(id=product_id)
+        product = Product.objects.select_for_update().get(
+            id=product_id, company=company_for_user(self.request.user)
+        )
         quantity = serializer.validated_data["quantity"]
         movement_type = serializer.validated_data["movement_type"]
         # update stock
@@ -162,14 +202,16 @@ class StockMovementCreateView(generics.CreateAPIView):
             product.quantity_in_stock = F("quantity_in_stock") - quantity
 
         product.save(update_fields=["quantity_in_stock"])
-        serializer.save(performed_by=self.request.user)
+        serializer.save(
+            company=company_for_user(self.request.user), performed_by=self.request.user
+        )
 
 
 class StockMovementPagination(PageNumberPagination):
     page_size = 20
 
 
-class StockMovementListView(generics.ListAPIView):
+class StockMovementListView(TenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StockMovementSerializer
     pagination_class = StockMovementPagination
@@ -196,7 +238,7 @@ class StockMovementListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = (
-            StockMovement.objects.all()
+            StockMovement.objects.filter(company=company_for_user(self.request.user))
             .select_related("product", "performed_by")
             .order_by("-timestamp")
         )
@@ -210,28 +252,33 @@ class StockMovementListView(generics.ListAPIView):
         return queryset
 
 
-class StockMovementDetailView(generics.RetrieveAPIView):
+class StockMovementDetailView(TenantMixin, generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
 
 
-class LowStockAnalyticsView(generics.ListAPIView):
+class LowStockAnalyticsView(TenantMixin, generics.ListAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Product.objects.all().filter(quantity_in_stock__lte=F("reorder_level"))
+        return Product.objects.filter(
+            company=company_for_user(self.request.user),
+            quantity_in_stock__lte=F("reorder_level"),
+        )
 
 
-class StockTurnoverAnalyticsView(generics.ListAPIView):
+class StockTurnoverAnalyticsView(TenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
 
         return (
-            Product.objects.filter(quantity_in_stock__gt=0)
+            Product.objects.filter(
+                company=company_for_user(self.request.user), quantity_in_stock__gt=0
+            )
             .annotate(
                 outbound_quantity=Coalesce(
                     Sum(
@@ -252,26 +299,32 @@ class StockTurnoverAnalyticsView(generics.ListAPIView):
         )
 
 
-class CategorySummaryView(generics.ListAPIView):
+class CategorySummaryView(TenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = CategorySerializer
 
     def get_queryset(self):
-        return Category.objects.annotate(
-            product_count=Count("products"),
-            total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
-            average_price=Coalesce(
-                Avg("products__unit_price"), Value(0.0), output_field=FloatField()
-            ),
-        ).order_by("name")
+        return (
+            Category.objects.filter(company=company_for_user(self.request.user))
+            .annotate(
+                product_count=Count("products"),
+                total_stock=Coalesce(Sum("products__quantity_in_stock"), Value(0)),
+                average_price=Coalesce(
+                    Avg("products__unit_price"), Value(0.0), output_field=FloatField()
+                ),
+            )
+            .order_by("name")
+        )
 
 
-class MovementSummaryView(generics.RetrieveAPIView):
+class MovementSummaryView(TenantMixin, generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = MovementSummarySerializer
 
     def get_object(self):
-        aggregates = StockMovement.objects.aggregate(
+        aggregates = StockMovement.objects.filter(
+            company=company_for_user(self.request.user)
+        ).aggregate(
             total_in=Sum("quantity", filter=Q(movement_type="IN")),
             total_out=Sum("quantity", filter=Q(movement_type="OUT")),
             total_movements=Count("id"),
@@ -286,23 +339,25 @@ class MovementSummaryView(generics.RetrieveAPIView):
         }
 
 
-class LowStockByCategoryView(generics.ListAPIView):
+class LowStockByCategoryView(TenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
         return Product.objects.filter(
+            company=company_for_user(self.request.user),
             quantity_in_stock__lte=F("reorder_level"),
             category_id=self.kwargs["category_id"],
         )
 
 
-class LowStockByCategoryAndSupplierView(generics.ListAPIView):
+class LowStockByCategoryAndSupplierView(TenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
 
     def get_queryset(self):
         return Product.objects.filter(
+            company=company_for_user(self.request.user),
             quantity_in_stock__lte=F("reorder_level"),
             category_id=self.kwargs["category_id"],
             supplier_id=self.kwargs["supplier_id"],
@@ -315,7 +370,7 @@ def _pct_change(current, previous):
     return round((current - previous) / previous * 100, 1)
 
 
-class DashboardOverviewView(generics.RetrieveAPIView):
+class DashboardOverviewView(TenantMixin, generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = DashboardOverviewSerializer
 
@@ -324,15 +379,20 @@ class DashboardOverviewView(generics.RetrieveAPIView):
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
 
-        product_agg = Product.objects.aggregate(
+        product_agg = Product.objects.filter(
+            company=company_for_user(self.request.user)
+        ).aggregate(
             total_products=Count("id"),
             total_stock_units=Sum("quantity_in_stock"),
         )
         low_stock_count = Product.objects.filter(
-            quantity_in_stock__lte=F("reorder_level")
+            company=company_for_user(self.request.user),
+            quantity_in_stock__lte=F("reorder_level"),
         ).count()
 
-        movement_agg = StockMovement.objects.aggregate(
+        movement_agg = StockMovement.objects.filter(
+            company=company_for_user(self.request.user)
+        ).aggregate(
             total_out=Sum("quantity", filter=Q(movement_type="OUT")),
             out_this_month=Sum(
                 "quantity", filter=Q(movement_type="OUT", timestamp__gte=month_start)
@@ -358,10 +418,12 @@ class DashboardOverviewView(generics.RetrieveAPIView):
             ),
         )
         products_this_month = Product.objects.filter(
-            created_at__gte=month_start
+            company=company_for_user(self.request.user), created_at__gte=month_start
         ).count()
         products_last_month = Product.objects.filter(
-            created_at__gte=last_month_start, created_at__lt=month_start
+            company=company_for_user(self.request.user),
+            created_at__gte=last_month_start,
+            created_at__lt=month_start,
         ).count()
 
         total_stock = product_agg["total_stock_units"] or 0
@@ -383,7 +445,7 @@ class DashboardOverviewView(generics.RetrieveAPIView):
         }
 
 
-class StockFlowTrendsView(generics.ListAPIView):
+class StockFlowTrendsView(TenantMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StockFlowPointSerializer
 
@@ -399,7 +461,9 @@ class StockFlowTrendsView(generics.ListAPIView):
             datetime.combine(today - timedelta(days=days), datetime.min.time())
         )
         return (
-            StockMovement.objects.filter(timestamp__gte=start)
+            StockMovement.objects.filter(
+                company=company_for_user(self.request.user), timestamp__gte=start
+            )
             .annotate(day=TruncDay("timestamp"))
             .values("day")
             .annotate(
@@ -427,11 +491,12 @@ class StockFlowTrendsView(generics.ListAPIView):
 
 class RegisterView(APIView):
     def post(self, request):
+        company_name = request.data.get("company_name")
         username = request.data.get("username")
         email = request.data.get("email")
         password = request.data.get("password")
 
-        if not username or not email or not password:
+        if not company_name or not username or not email or not password:
             return Response(
                 {"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -452,27 +517,42 @@ class RegisterView(APIView):
             validate_password(password)
         except ValidationError as exc:
             return Response(
-                {"password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST
+                {"password": exc.messages if hasattr(exc, "messages") else list(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = User.objects.create_user(
-            username=username, email=email, password=password
-        )
+        from django.db import transaction
 
-        refresh = RefreshToken.for_user(user)
+        try:
+            with transaction.atomic():
+                company = Company.objects.create(name=company_name)
+                user = User.objects.create_superuser(
+                    username=username, email=email, password=password
+                )
+                CompanyMembership.objects.create(company=company, user=user)
 
-        response = Response(
-            {"detail": "User registered successfully"}, status=status.HTTP_200_OK
-        )
+            refresh = RefreshToken.for_user(user)
 
-        set_auth_cookies(response, refresh, refresh.access_token)
-        from django.middleware.csrf import get_token
+            response = Response(
+                {"detail": "User registered successfully"}, status=status.HTTP_200_OK
+            )
 
-        response.set_cookie(
-            "csrftoken", get_token(request), samesite="Lax", secure=not settings.DEBUG
-        )
+            set_auth_cookies(response, refresh, refresh.access_token)
+            from django.middleware.csrf import get_token
 
-        return response
+            response.set_cookie(
+                "csrftoken",
+                get_token(request),
+                samesite="Lax",
+                secure=not settings.DEBUG,
+            )
+
+            return response
+        except Exception as e:
+            return Response(
+                {"error": f"Registration failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 def set_auth_cookies(response, refresh_token, access_token):
@@ -509,7 +589,7 @@ class LoginView(APIView):
 
         user = authenticate(request, username=username, password=password)
 
-        if user is not None:
+        if user is not None and company_for_user(user) is not None:
             # user is an authenticated User instance
             refresh = RefreshToken.for_user(user)
             response = Response(
