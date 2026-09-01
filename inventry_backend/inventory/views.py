@@ -11,10 +11,10 @@ from .models import (
     CompanyMembership,
     company_for_user,
 )
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
 from django.contrib.auth import authenticate
@@ -176,6 +176,20 @@ class ProductDetailView(TenantMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
     permission_classes = [InventoryPermission]
 
+    def perform_update(self, serializer):
+        company = company_for_user(self.request.user)
+        category = serializer.validated_data.get("category")
+        supplier = serializer.validated_data.get("supplier")
+        if category and category.company_id != company.id:
+            raise ValidationError(
+                {"category": "Category does not belong to your company."}
+            )
+        if supplier and supplier.company_id != company.id:
+            raise ValidationError(
+                {"supplier": "Supplier does not belong to your company."}
+            )
+        serializer.save()
+
 
 class StockMovementCreateView(TenantMixin, generics.CreateAPIView):
     queryset = StockMovement.objects.all()
@@ -184,11 +198,21 @@ class StockMovementCreateView(TenantMixin, generics.CreateAPIView):
 
     @transaction.atomic()
     def perform_create(self, serializer):
-        product_id = serializer.validated_data["product"].id
-        product = Product.objects.select_for_update().get(
-            id=product_id, company=company_for_user(self.request.user)
-        )
+        product_obj = serializer.validated_data["product"]
+        company = company_for_user(self.request.user)
+        try:
+            product = Product.objects.select_for_update().get(
+                id=product_obj.id, company=company
+            )
+        except Product.DoesNotExist:
+            raise ValidationError(
+                {"product": "Product does not exist or does not belong to your company."}
+            )
+
         quantity = serializer.validated_data["quantity"]
+        if quantity <= 0:
+            raise ValidationError({"quantity": "Quantity must be greater than zero."})
+
         movement_type = serializer.validated_data["movement_type"]
         # update stock
         if movement_type == "IN":
@@ -203,7 +227,7 @@ class StockMovementCreateView(TenantMixin, generics.CreateAPIView):
 
         product.save(update_fields=["quantity_in_stock"])
         serializer.save(
-            company=company_for_user(self.request.user), performed_by=self.request.user
+            company=company, performed_by=self.request.user
         )
 
 
@@ -515,7 +539,7 @@ class RegisterView(APIView):
 
         try:
             validate_password(password)
-        except ValidationError as exc:
+        except DjangoValidationError as exc:
             return Response(
                 {"password": exc.messages if hasattr(exc, "messages") else list(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -556,6 +580,8 @@ class RegisterView(APIView):
 
 
 def set_auth_cookies(response, refresh_token, access_token):
+    access_lifetime = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+    refresh_lifetime = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
     response.set_cookie(
         "access_token",
         str(access_token),
@@ -563,7 +589,7 @@ def set_auth_cookies(response, refresh_token, access_token):
         samesite="Lax",
         secure=not settings.DEBUG,
         path="/",
-        max_age=24 * 60 * 60,
+        max_age=access_lifetime,
     )
     response.set_cookie(
         "refresh_token",
@@ -572,7 +598,7 @@ def set_auth_cookies(response, refresh_token, access_token):
         samesite="Lax",
         secure=not settings.DEBUG,
         path="/",
-        max_age=7 * 24 * 3600,
+        max_age=refresh_lifetime,
     )
 
 

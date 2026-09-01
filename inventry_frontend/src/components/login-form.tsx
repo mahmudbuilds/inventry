@@ -70,7 +70,7 @@ export function LoginForm({
             {error && <div className="text-red-600 text-sm">{error}</div>}
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="text">Username</FieldLabel>
+                <FieldLabel htmlFor="username">Username</FieldLabel>
                 <Input
                   id="username"
                   type="text"

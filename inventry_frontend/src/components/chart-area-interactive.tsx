@@ -225,7 +225,11 @@ export function ChartAreaInteractive({
                 minTickGap={24}
                 tickFormatter={(value) => {
                   if (!value) return "";
-                  const date = new Date(value);
+                  const parts = String(value).split("-").map(Number);
+                  const date =
+                    parts.length === 3 && !isNaN(parts[0])
+                      ? new Date(parts[0], parts[1] - 1, parts[2])
+                      : new Date(value);
                   return date.toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -243,7 +247,13 @@ export function ChartAreaInteractive({
                 content={
                   <ChartTooltipContent
                     labelFormatter={(value) => {
-                      return new Date(value).toLocaleDateString("en-US", {
+                      if (!value) return "";
+                      const parts = String(value).split("-").map(Number);
+                      const date =
+                        parts.length === 3 && !isNaN(parts[0])
+                          ? new Date(parts[0], parts[1] - 1, parts[2])
+                          : new Date(value);
+                      return date.toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",

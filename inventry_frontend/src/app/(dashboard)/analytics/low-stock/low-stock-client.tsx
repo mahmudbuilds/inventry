@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -128,7 +129,7 @@ export function LowStockClient({
     if (!restockProduct) return;
     setRestockSubmitting(true);
     try {
-      const res = await fetch("/api/inventory/movements/", {
+      const res = await apiFetch("/api/inventory/movements/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

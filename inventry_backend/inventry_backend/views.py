@@ -15,8 +15,17 @@ class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
+            user = getattr(request, "user", None)
+            if user and user.is_authenticated and company_for_user(user) is None:
+                return Response(
+                    {"detail": "User is not assigned to a company."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             access_token = response.data.get("access")
             refresh_token = response.data.get("refresh")
+            access_lifetime = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+            refresh_lifetime = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
             # To set the HTTPOnly Cookies
             response.set_cookie(
@@ -26,7 +35,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 secure=not settings.DEBUG,
                 samesite="Lax",
                 path="/",
-                max_age=15 * 60,
+                max_age=access_lifetime,
             )
 
             response.set_cookie(
@@ -36,7 +45,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 secure=not settings.DEBUG,
                 samesite="Lax",
                 path="/",
-                max_age=7 * 24 * 3600,
+                max_age=refresh_lifetime,
             )
 
             # Removing the tokens from the response data
@@ -63,6 +72,8 @@ class CookieTokenRefreshView(TokenRefreshView):
 
         access_token = serializer.validated_data.get("access")
         new_refresh = serializer.validated_data.get("refresh", refresh_token)
+        access_lifetime = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+        refresh_lifetime = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
 
         response = Response(
             {"access": access_token, "detail": "Token Refreshed"},
@@ -77,7 +88,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             samesite="Lax",
             secure=not settings.DEBUG,
             path="/",
-            max_age=24 * 3600,
+            max_age=access_lifetime,
         )
 
         if new_refresh:
@@ -88,7 +99,7 @@ class CookieTokenRefreshView(TokenRefreshView):
                 samesite="Lax",
                 secure=not settings.DEBUG,
                 path="/",
-                max_age=7 * 24 * 3600,
+                max_age=refresh_lifetime,
             )
 
         return response

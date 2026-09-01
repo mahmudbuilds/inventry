@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-client";
-import { Sonner, toast } from "sonner";
+import { toast } from "sonner";
 
 interface PasswordChangeDialogProps {
   open: boolean;
