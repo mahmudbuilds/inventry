@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission
+from .models import company_for_user
 
 
 class InventoryPermission(BasePermission):
@@ -7,6 +8,8 @@ class InventoryPermission(BasePermission):
     def has_permission(self, request, view):
         user = request.user
         if not user or not user.is_authenticated:
+            return False
+        if company_for_user(user) is None:
             return False
 
         if request.method in ("GET", "HEAD", "OPTIONS"):

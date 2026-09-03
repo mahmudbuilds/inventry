@@ -6,10 +6,10 @@
  */
 
 let isRefreshing = false;
-let pendingRequests: Array<() => void> = [];
+let pendingRequests: Array<(refreshed: boolean) => void> = [];
 
-function onTokenRefreshed() {
-  pendingRequests.forEach((callback) => callback());
+function onTokenRefreshed(refreshed: boolean) {
+  pendingRequests.forEach((callback) => callback(refreshed));
   pendingRequests = [];
 }
 
@@ -61,11 +61,11 @@ export async function apiFetch(
       const refreshed = await refreshAuthToken();
       isRefreshing = false;
 
+      onTokenRefreshed(refreshed);
+
       if (refreshed) {
-        onTokenRefreshed();
         return apiFetch(endpoint, options, true);
       } else {
-        onTokenRefreshed();
         if (
           typeof window !== "undefined" &&
           !window.location.pathname.startsWith("/login") &&
@@ -76,10 +76,14 @@ export async function apiFetch(
         return response;
       }
     } else {
-      // Wait for ongoing refresh to complete then retry
+      // Wait for ongoing refresh to complete then retry if successful
       return new Promise<Response>((resolve) => {
-        pendingRequests.push(async () => {
-          resolve(await apiFetch(endpoint, options, true));
+        pendingRequests.push(async (refreshed: boolean) => {
+          if (refreshed) {
+            resolve(await apiFetch(endpoint, options, true));
+          } else {
+            resolve(response);
+          }
         });
       });
     }
