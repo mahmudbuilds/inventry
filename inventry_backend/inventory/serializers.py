@@ -33,7 +33,8 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = '__all__'
+        fields = "__all__"
+        read_only_fields = ("company",)
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -41,27 +42,32 @@ class SupplierSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Supplier
-        fields = '__all__'
+        fields = "__all__"
+        read_only_fields = ("company",)
 
 
 class ProductSerializer(serializers.ModelSerializer):
     turnover_rate = serializers.FloatField(read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    supplier_name = serializers.CharField(source='supplier.name', read_only=True, allow_null=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    supplier_name = serializers.CharField(
+        source="supplier.name", read_only=True, allow_null=True
+    )
     initial_stock = serializers.IntegerField(write_only=True, required=False, default=0)
 
     class Meta:
         model = Product
-        fields = '__all__'
-        read_only_fields = ('quantity_in_stock',)
+        fields = "__all__"
+        read_only_fields = ("quantity_in_stock", "company")
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source='product.name', read_only=True)
-    product_sku = serializers.CharField(source='product.sku', read_only=True)
-    performed_by_username = serializers.CharField(source='performed_by.username', read_only=True, allow_null=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    performed_by_username = serializers.CharField(
+        source="performed_by.username", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = StockMovement
-        fields = '__all__'
-        read_only_fields = ('performed_by',)
+        fields = "__all__"
+        read_only_fields = ("performed_by", "company")

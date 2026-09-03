@@ -10,21 +10,21 @@ export default async function UsersPage() {
   let currentUser = null;
   let users: ManagedUser[] = [];
 
+  const meRes = await fetchWithAuth("/api/auth/me", {
+    credentials: "include",
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!meRes || !meRes.ok) {
+    redirect("/login");
+  }
+
+  currentUser = await meRes.json().catch(() => null);
+  if (!currentUser || currentUser.role !== "Admin") {
+    redirect("/");
+  }
+
   try {
-    const meRes = await fetchWithAuth("/api/auth/me", {
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    if (!meRes.ok) {
-      redirect("/login");
-    }
-
-    currentUser = await meRes.json();
-    if (currentUser.role !== "Admin") {
-      redirect("/");
-    }
-
     const usersRes = await fetchWithAuth("/api/auth/users/", {
       credentials: "include",
       cache: "no-store",

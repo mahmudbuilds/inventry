@@ -5,6 +5,7 @@ import {
   Loader2Icon,
   MoreVerticalIcon,
   PencilIcon,
+  PlusIcon,
   SearchIcon,
   ShieldAlertIcon,
   ShieldCheckIcon,
@@ -93,6 +94,14 @@ export function UsersClient({
   const [deleteUser, setDeleteUser] = React.useState<ManagedUser | null>(null);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [createSubmitting, setCreateSubmitting] = React.useState(false);
+  const [newUser, setNewUser] = React.useState({
+    username: "",
+    email: "",
+    password: "",
+    role: "Member",
+  });
 
   React.useEffect(() => {
     setUsers(initialUsers);
@@ -197,6 +206,34 @@ export function UsersClient({
     }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateSubmitting(true);
+    try {
+      const res = await apiFetch("/api/auth/users/", {
+        method: "POST",
+        body: JSON.stringify(newUser),
+      });
+
+      if (res.ok) {
+        const createdUser = await res.json();
+        setUsers((prev) => [...prev, createdUser]);
+        setNewUser({ username: "", email: "", password: "", role: "Member" });
+        setCreateOpen(false);
+        toast.success(`User ${createdUser.username} added successfully`);
+        router.refresh();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(formatApiError(err, "Failed to add user"));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network error while adding user");
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
       {/* KPI Cards */}
@@ -281,6 +318,10 @@ export function UsersClient({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => setCreateOpen(true)} className="h-9">
+              <PlusIcon className="size-4" />
+              Add User
+            </Button>
             <div className="relative w-full sm:w-64">
               <SearchIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
               <Input
@@ -450,6 +491,92 @@ export function UsersClient({
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <form onSubmit={handleCreateUser}>
+            <DialogHeader>
+              <DialogTitle>Add User</DialogTitle>
+              <DialogDescription>
+                Add an account to this company. Only administrators can do this.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="new-username">Username</Label>
+                <Input
+                  id="new-username"
+                  value={newUser.username}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, username: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-email">Email</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, email: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-password">Temporary password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, password: e.target.value })
+                  }
+                  minLength={8}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-role">Role</Label>
+                <Select
+                  value={newUser.role}
+                  onValueChange={(role) =>
+                    role && setNewUser({ ...newUser, role })
+                  }
+                >
+                  <SelectTrigger id="new-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Staff">Staff</SelectItem>
+                    <SelectItem value="Member">Member</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateOpen(false)}
+                disabled={createSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createSubmitting}>
+                {createSubmitting ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : (
+                  "Add User"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Role Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 from datetime import datetime, timedelta
 
-from .models import Category, Product, StockMovement
+from .models import Category, Company, CompanyMembership, Product, StockMovement
 
 
 class StockMovementPaginationTests(APITestCase):
@@ -13,17 +13,21 @@ class StockMovementPaginationTests(APITestCase):
             username="movement-tester",
             password="test-password",
         )
-        category = Category.objects.create(name="Test category")
+        company = Company.objects.create(name="Movement Test Company")
+        CompanyMembership.objects.create(company=company, user=self.user)
+        category = Category.objects.create(name="Test category", company=company)
         product = Product.objects.create(
             sku="TEST-001",
             name="Test product",
             category=category,
             unit_price=10,
+            company=company,
         )
         StockMovement.objects.bulk_create(
             [
                 StockMovement(
                     product=product,
+                    company=company,
                     movement_type="IN",
                     quantity=index + 1,
                     performed_by=self.user,
@@ -63,15 +67,21 @@ class InventoryPermissionTests(APITestCase):
             username="member",
             password="test-password",
         )
+        member_company = Company.objects.create(name="Member Company")
+        CompanyMembership.objects.create(company=member_company, user=self.member)
         self.staff = User.objects.create_user(
             username="staff",
             password="test-password",
             is_staff=True,
         )
+        staff_company = Company.objects.create(name="Staff Company")
+        CompanyMembership.objects.create(company=staff_company, user=self.staff)
         self.admin = User.objects.create_superuser(
             username="admin",
             password="test-password",
         )
+        admin_company = Company.objects.create(name="Admin Company")
+        CompanyMembership.objects.create(company=admin_company, user=self.admin)
         self.category_url = reverse("category-list")
 
     def test_member_can_read_but_cannot_create(self):
@@ -97,7 +107,10 @@ class InventoryPermissionTests(APITestCase):
         self.assertEqual(delete_response.status_code, 403)
 
     def test_admin_can_delete(self):
-        category = Category.objects.create(name="Admin category")
+        category = Category.objects.create(
+            name="Admin category",
+            company=CompanyMembership.objects.get(user=self.admin).company,
+        )
         self.client.force_authenticate(user=self.admin)
 
         response = self.client.delete(reverse("category-detail", args=[category.id]))
@@ -111,12 +124,15 @@ class StockFlowAnalyticsTests(APITestCase):
             username="flow-tester",
             password="test-password",
         )
-        category = Category.objects.create(name="Flow category")
+        company = Company.objects.create(name="Flow Test Company")
+        CompanyMembership.objects.create(company=company, user=self.user)
+        category = Category.objects.create(name="Flow category", company=company)
         self.product = Product.objects.create(
             sku="FLOW-001",
             name="Flow product",
             category=category,
             unit_price=10,
+            company=company,
         )
         self.client.force_authenticate(user=self.user)
 
@@ -124,12 +140,14 @@ class StockFlowAnalyticsTests(APITestCase):
         today = timezone.now()
         StockMovement.objects.create(
             product=self.product,
+            company=CompanyMembership.objects.get(user=self.user).company,
             movement_type="IN",
             quantity=7,
             performed_by=self.user,
         )
         StockMovement.objects.create(
             product=self.product,
+            company=CompanyMembership.objects.get(user=self.user).company,
             movement_type="OUT",
             quantity=3,
             performed_by=self.user,
@@ -153,6 +171,7 @@ class StockFlowAnalyticsTests(APITestCase):
     def test_stock_flow_excludes_movements_before_calendar_window(self):
         old_movement = StockMovement.objects.create(
             product=self.product,
+            company=CompanyMembership.objects.get(user=self.user).company,
             movement_type="IN",
             quantity=9,
             performed_by=self.user,
@@ -168,6 +187,7 @@ class StockFlowAnalyticsTests(APITestCase):
     def test_stock_flow_includes_movement_exactly_days_before_today(self):
         boundary_movement = StockMovement.objects.create(
             product=self.product,
+            company=CompanyMembership.objects.get(user=self.user).company,
             movement_type="IN",
             quantity=5,
             performed_by=self.user,

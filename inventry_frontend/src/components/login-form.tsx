@@ -70,7 +70,7 @@ export function LoginForm({
             {error && <div className="text-red-600 text-sm">{error}</div>}
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="text">Username</FieldLabel>
+                <FieldLabel htmlFor="username">Username</FieldLabel>
                 <Input
                   id="username"
                   type="text"
@@ -105,9 +105,8 @@ export function LoginForm({
                   {submitting && <Loader2Icon className="animate-spin" />}
                   {submitting ? "Logging in..." : "Login"}
                 </Button>
-
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account?{" "}
+                  Need to create your company?{" "}
                   <Link href="/signup">Sign up</Link>
                 </FieldDescription>
               </Field>

@@ -23,6 +23,7 @@ import { apiFetch } from "@/lib/api-client";
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const router = useRouter();
+  const [companyName, setCompanyName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,16 +41,19 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     try {
       const response = await apiFetch("/api/auth/register/", {
         method: "POST",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({
+          company_name: companyName,
+          username,
+          email,
+          password,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         setError(errorData.error || "Registration failed");
       } else {
-        const data = await response.json();
-        // Handle success: store token, redirect, etc.
-        console.log("Registration successful:", data);
+        await response.json();
         router.push("/");
       }
     } catch (err) {
@@ -63,9 +67,9 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   return (
     <Card {...props}>
       <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+        <CardTitle>Create your company</CardTitle>
         <CardDescription>
-          Enter your information below to create your account
+          The first account becomes the company superuser.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -76,11 +80,23 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
           {error && <div className="text-red-600 text-sm">{error}</div>}
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="name">Username</FieldLabel>
+              <FieldLabel htmlFor="company-name">Company name</FieldLabel>
+              <Input
+                id="company-name"
+                type="text"
+                placeholder="Acme Inventory"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="username">Username</FieldLabel>
               <Input
                 id="username"
                 type="text"
                 placeholder="johndoe"
+                value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
@@ -131,7 +147,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                   aria-busy={submitting}
                 >
                   {submitting && <Loader2Icon className="animate-spin" />}
-                  {submitting ? "Creating account..." : "Create Account"}
+                  {submitting ? "Creating company..." : "Create Company"}
                 </Button>
                 <FieldDescription className="px-6 text-center">
                   Already have an account? <Link href="/login">Sign in</Link>
