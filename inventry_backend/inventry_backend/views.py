@@ -11,6 +11,13 @@ from django.core.exceptions import ValidationError
 from inventory.models import CompanyMembership, company_for_user
 
 
+def get_cookie_security_params():
+    return {
+        "secure": not settings.DEBUG,
+        "samesite": "None" if not settings.DEBUG else "Lax",
+    }
+
+
 class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -26,14 +33,15 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             refresh_token = response.data.get("refresh")
             access_lifetime = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
             refresh_lifetime = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+            cookie_sec = get_cookie_security_params()
 
             # To set the HTTPOnly Cookies
             response.set_cookie(
                 "access_token",
                 access_token,
                 httponly=True,
-                secure=not settings.DEBUG,
-                samesite="Lax",
+                secure=cookie_sec["secure"],
+                samesite=cookie_sec["samesite"],
                 path="/",
                 max_age=access_lifetime,
             )
@@ -42,8 +50,8 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 "refresh_token",
                 refresh_token,
                 httponly=True,
-                secure=not settings.DEBUG,
-                samesite="Lax",
+                secure=cookie_sec["secure"],
+                samesite=cookie_sec["samesite"],
                 path="/",
                 max_age=refresh_lifetime,
             )
@@ -80,13 +88,15 @@ class CookieTokenRefreshView(TokenRefreshView):
             status=status.HTTP_200_OK,
         )
 
+        cookie_sec = get_cookie_security_params()
+
         # Set HTTPOnly Cookies
         response.set_cookie(
             "access_token",
             str(access_token),
             httponly=True,
-            samesite="Lax",
-            secure=not settings.DEBUG,
+            samesite=cookie_sec["samesite"],
+            secure=cookie_sec["secure"],
             path="/",
             max_age=access_lifetime,
         )
@@ -96,8 +106,8 @@ class CookieTokenRefreshView(TokenRefreshView):
                 "refresh_token",
                 str(new_refresh),
                 httponly=True,
-                samesite="Lax",
-                secure=not settings.DEBUG,
+                samesite=cookie_sec["samesite"],
+                secure=cookie_sec["secure"],
                 path="/",
                 max_age=refresh_lifetime,
             )
@@ -119,6 +129,8 @@ class LogoutView(APIView):
             status=status.HTTP_200_OK,
         )
 
+        cookie_sec = get_cookie_security_params()
+
         # Overwrite with expired cookies explicitly
         response.set_cookie(
             "access_token",
@@ -127,8 +139,8 @@ class LogoutView(APIView):
             expires="Thu, 01 Jan 1970 00:00:00 GMT",
             path="/",
             httponly=True,
-            samesite="Lax",
-            secure=not settings.DEBUG,
+            samesite=cookie_sec["samesite"],
+            secure=cookie_sec["secure"],
         )
         response.set_cookie(
             "refresh_token",
@@ -137,18 +149,18 @@ class LogoutView(APIView):
             expires="Thu, 01 Jan 1970 00:00:00 GMT",
             path="/",
             httponly=True,
-            samesite="Lax",
-            secure=not settings.DEBUG,
+            samesite=cookie_sec["samesite"],
+            secure=cookie_sec["secure"],
         )
         response.delete_cookie(
             "access_token",
             path="/",
-            samesite="Lax",
+            samesite=cookie_sec["samesite"],
         )
         response.delete_cookie(
             "refresh_token",
             path="/",
-            samesite="Lax",
+            samesite=cookie_sec["samesite"],
         )
         response.delete_cookie(
             settings.SESSION_COOKIE_NAME,

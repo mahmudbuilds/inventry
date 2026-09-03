@@ -564,11 +564,14 @@ class RegisterView(APIView):
             set_auth_cookies(response, refresh, refresh.access_token)
             from django.middleware.csrf import get_token
 
+            cookie_samesite = "None" if not settings.DEBUG else "Lax"
+            cookie_secure = not settings.DEBUG
+
             response.set_cookie(
                 "csrftoken",
                 get_token(request),
-                samesite="Lax",
-                secure=not settings.DEBUG,
+                samesite=cookie_samesite,
+                secure=cookie_secure,
             )
 
             return response
@@ -582,12 +585,14 @@ class RegisterView(APIView):
 def set_auth_cookies(response, refresh_token, access_token):
     access_lifetime = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
     refresh_lifetime = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+    cookie_samesite = "None" if not settings.DEBUG else "Lax"
+    cookie_secure = not settings.DEBUG
     response.set_cookie(
         "access_token",
         str(access_token),
         httponly=True,
-        samesite="Lax",
-        secure=not settings.DEBUG,
+        samesite=cookie_samesite,
+        secure=cookie_secure,
         path="/",
         max_age=access_lifetime,
     )
@@ -595,8 +600,8 @@ def set_auth_cookies(response, refresh_token, access_token):
         "refresh_token",
         str(refresh_token),
         httponly=True,
-        samesite="Lax",
-        secure=not settings.DEBUG,
+        samesite=cookie_samesite,
+        secure=cookie_secure,
         path="/",
         max_age=refresh_lifetime,
     )

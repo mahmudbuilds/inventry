@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_URL = rawApiUrl.replace(/\/+$/, "");
 
 // Helper to get access and refresh tokens individually
 async function getAuthTokens(overrideToken?: string) {
@@ -31,7 +32,9 @@ export async function fetchWithAuth(
     requestHeaders.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  const response = await fetch(`${API_URL}${cleanEndpoint}`, {
     ...options,
     headers: requestHeaders,
     credentials: "include",

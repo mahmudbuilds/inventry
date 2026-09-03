@@ -43,7 +43,14 @@ export async function apiFetch(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(endpoint, {
+  const url =
+    endpoint.startsWith("http://") || endpoint.startsWith("https://")
+      ? endpoint
+      : endpoint.startsWith("/")
+        ? endpoint
+        : `/${endpoint}`;
+
+  const response = await fetch(url, {
     ...options,
     headers,
     credentials: "include",
