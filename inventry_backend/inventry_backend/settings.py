@@ -65,18 +65,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-cors_allowed_env = os.environ.get("CORS_ALLOWED_ORIGINS")
-if cors_allowed_env:
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_allowed_env.split(",") if origin.strip()]
-else:
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://inventry-roan.vercel.app",
-    ]
 
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https:\/\/.*\.vercel\.app$",
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://inventry-roan.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
