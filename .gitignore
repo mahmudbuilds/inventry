@@ -1,19 +1,105 @@
-# Local Virtual Environment
-venv/
-.venv/
+# ==============================================================================
+# Inventry - Root .gitignore
+# ==============================================================================
 
-.agents/
-.claude/
-
-.inventry_frontend/design/
-
-# Python compiled files
-*.pyc
-__pycache__/
-
-# Django databases and secrets
-*.sqlite3
-db.sqlite3
+# ------------------------------------------------------------------------------
+# Environments & Secrets (NEVER commit secrets or local configs)
+# ------------------------------------------------------------------------------
 .env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.cert
+*.crt
 
+# ------------------------------------------------------------------------------
+# Python & Django
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Django local databases & migrations cache
+*.sqlite3
+*.db
+db.sqlite3
+
+# Django static and media files
+staticfiles/
+media/
+
+# Test, coverage, and logs
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ------------------------------------------------------------------------------
+# Node.js & Next.js (Frontend)
+# ------------------------------------------------------------------------------
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js build output & cache
+.next/
+out/
+build/
+dist/
+.vercel/
+
+# TypeScript cache & generated files
+*.tsbuildinfo
+next-env.d.ts
+
+# ------------------------------------------------------------------------------
+# AI Assistants, Agent Directories, & Tooling
+# ------------------------------------------------------------------------------
+.claude/
+.agents/
+.gemini/
+.cursor/
+.aider*
 skills-lock.json
+
+# ------------------------------------------------------------------------------
+# Operating System & IDE Files
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+
+# Editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
