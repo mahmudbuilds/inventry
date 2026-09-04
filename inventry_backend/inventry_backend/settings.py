@@ -31,7 +31,7 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 raw_allowed_hosts = os.environ.get('ALLOWED_HOSTS', '*')
 ALLOWED_HOSTS = [host.strip() for host in raw_allowed_hosts.split(',') if host.strip()]
 if '*' not in ALLOWED_HOSTS:
-    for default_host in ['localhost', '127.0.0.1', 'inventry-2sxu.onrender.com']:
+    for default_host in ['localhost', '127.0.0.1', 'inventry-roan.vercel.app']:
         if default_host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(default_host)
 
