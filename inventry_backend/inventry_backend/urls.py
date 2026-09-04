@@ -9,9 +9,11 @@ from .views import (
     LogoutView,
     UserManagementView,
     UserDetailManagementView,
+    health_check,
 )
 
 urlpatterns = [
+    path("", health_check, name="health_check"),
     path("admin/", admin.site.urls),
     path("api/inventory/", include("inventory.urls")),
     path("api/inventory", include("inventory.urls")),
