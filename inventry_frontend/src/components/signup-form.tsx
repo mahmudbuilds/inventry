@@ -19,7 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const router = useRouter();
@@ -38,6 +38,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       return;
     }
     setSubmitting(true);
+    setError("");
     try {
       const response = await apiFetch("/api/auth/register/", {
         method: "POST",
@@ -49,16 +50,27 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         }),
       });
 
+      const contentType = response.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+
       if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || "Registration failed");
+        if (isJson) {
+          const errorData = await response.json();
+          setError(formatApiError(errorData, "Registration failed"));
+        } else {
+          setError(
+            `Server error (${response.status}). Please verify that your backend server is running and reachable.`
+          );
+        }
       } else {
-        await response.json();
+        if (isJson) {
+          await response.json();
+        }
         router.push("/");
       }
     } catch (err) {
       console.error("Registration error:", err);
-      setError(`Registration failed: ${err}`);
+      setError(`Registration failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }

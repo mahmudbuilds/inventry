@@ -19,7 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export function LoginForm({
@@ -35,23 +35,35 @@ export function LoginForm({
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
+    setError("");
     try {
-      const response = await apiFetch("/api/auth/login", {
+      const response = await apiFetch("/api/auth/login/", {
         method: "POST",
         body: JSON.stringify({ username, password }),
       });
 
+      const contentType = response.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+
       if (response.ok) {
-        const _data = await response.json();
+        if (isJson) {
+          await response.json();
+        }
         router.push("/");
         router.refresh();
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Login failed");
+        if (isJson) {
+          const errorData = await response.json();
+          setError(formatApiError(errorData, "Login failed"));
+        } else {
+          setError(
+            `Server error (${response.status}). Please verify that your backend server is running and reachable.`
+          );
+        }
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError(`Login failed: ${err}`);
+      setError(`Login failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }

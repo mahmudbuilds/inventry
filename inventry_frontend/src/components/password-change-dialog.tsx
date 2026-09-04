@@ -17,7 +17,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, formatApiError } from "@/lib/api-client";
 import { toast } from "sonner";
 
 interface PasswordChangeDialogProps {
@@ -68,16 +68,25 @@ export function PasswordChangeDialog({
         }),
       });
 
+      const contentType = response.headers.get("content-type") || "";
+      const isJson = contentType.includes("application/json");
+
       if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.password) {
-          setError(
-            Array.isArray(errorData.password)
-              ? errorData.password.join(", ")
-              : errorData.password
-          );
+        if (isJson) {
+          const errorData = await response.json();
+          if (errorData.password) {
+            setError(
+              Array.isArray(errorData.password)
+                ? errorData.password.join(", ")
+                : errorData.password
+            );
+          } else {
+            setError(formatApiError(errorData, "Failed to change password"));
+          }
         } else {
-          setError(errorData.error || "Failed to change password");
+          setError(
+            `Server error (${response.status}). Please verify that your backend server is running and reachable.`
+          );
         }
       } else {
         toast.success("Password changed successfully");
