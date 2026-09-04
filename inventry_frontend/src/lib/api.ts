@@ -40,26 +40,41 @@ export async function fetchWithAuth(
     credentials: "include",
   });
 
-  // Return immediately if request succeeded or already retried
-  if (response.status !== 401 || hasRetried) {
+  // Return immediately if request succeeded, already retried, no refresh token available,
+  // or if this is an auth endpoint where 401 should not trigger refresh
+  if (
+    response.status !== 401 ||
+    hasRetried ||
+    !refreshToken ||
+    cleanEndpoint.includes("/api/token/refresh") ||
+    cleanEndpoint.includes("/api/auth/login") ||
+    cleanEndpoint.includes("/api/auth/register")
+  ) {
     return response;
   }
 
-  // Pass refresh token in request body or header depending on backend requirements
-  const refreshResponse = await fetch(`${API_URL}/api/token/refresh/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ refresh: refreshToken }),
-    credentials: "include",
-  });
+  try {
+    // Pass refresh token in request body or header depending on backend requirements
+    const refreshResponse = await fetch(`${API_URL}/api/token/refresh/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refresh: refreshToken }),
+      credentials: "include",
+    });
 
-  if (!refreshResponse.ok) return response;
+    if (!refreshResponse.ok) return response;
 
-  const data = await refreshResponse.json();
-  const newAccessToken = data.access; // Assuming API returns { access: "..." }
+    const data = await refreshResponse.json();
+    const newAccessToken = data.access; // Assuming API returns { access: "..." }
 
-  // Retry the request with the new Bearer token
-  return fetchWithAuth(endpoint, options, true, newAccessToken);
+    if (!newAccessToken) return response;
+
+    // Retry the request with the new Bearer token
+    return fetchWithAuth(endpoint, options, true, newAccessToken);
+  } catch (err) {
+    console.error("Token refresh failed in fetchWithAuth:", err);
+    return response;
+  }
 }

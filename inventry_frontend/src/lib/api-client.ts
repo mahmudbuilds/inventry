@@ -9,7 +9,9 @@ let isRefreshing = false;
 let pendingRequests: Array<(refreshed: boolean) => void> = [];
 
 function onTokenRefreshed(refreshed: boolean) {
-  pendingRequests.forEach((callback) => callback(refreshed));
+  pendingRequests.forEach((callback) => {
+    callback(refreshed);
+  });
   pendingRequests = [];
 }
 
