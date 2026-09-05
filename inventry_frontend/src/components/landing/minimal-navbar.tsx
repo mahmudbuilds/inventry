@@ -29,37 +29,48 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-900/80 py-3.5"
+          ? "bg-white/85 backdrop-blur-xl border-b border-zinc-200/80 shadow-xs py-3"
           : "bg-transparent py-5"
       }`}
     >
       <div className="mx-auto max-w-7xl px-6 lg:px-8 flex items-center justify-between">
-        {/* Brand */}
+        {/* Brand - Exactly matches dashboard sidebar */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 p-1.5 transition-transform group-hover:scale-105">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-white border border-zinc-200/90 shadow-xs p-1 transition-transform group-hover:scale-105">
             <Image
               src={logo}
-              alt="Inventry"
-              width={20}
-              height={20}
-              className="invert"
+              alt="Inventry Logo"
+              width={26}
+              height={26}
+              className="h-6 w-6 object-contain"
             />
           </div>
-          <span className="text-base font-semibold tracking-tight text-white font-sans">
-            Inventry
-          </span>
+          <div className="flex flex-col">
+            <span className="text-base font-semibold tracking-tight text-zinc-900 font-sans">
+              Inventry
+            </span>
+          </div>
         </Link>
 
-        {/* Quiet Anchor Navigation */}
-        <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-zinc-400">
-          <a href="#engine" className="transition-colors hover:text-white">
-            Engine
+        {/* Anchor Navigation */}
+        <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-zinc-600">
+          <a href="#engine" className="transition-colors hover:text-indigo-600">
+            Simulator
           </a>
-          <a href="#pillars" className="transition-colors hover:text-white">
-            Pillars
+          <a href="#analytics" className="transition-colors hover:text-indigo-600">
+            Analytics
           </a>
-          <a href="#metrics" className="transition-colors hover:text-white">
-            Metrics
+          <a href="#pillars" className="transition-colors hover:text-indigo-600">
+            Reliability
+          </a>
+          <a href="#features" className="transition-colors hover:text-indigo-600">
+            Features
+          </a>
+          <a href="#workflow" className="transition-colors hover:text-indigo-600">
+            How It Works
+          </a>
+          <a href="#faq" className="transition-colors hover:text-indigo-600">
+            FAQ
           </a>
         </nav>
 
@@ -67,12 +78,12 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
         <div className="hidden md:flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 font-mono">
+              <span className="text-xs text-zinc-600 font-mono">
                 {user.name}
               </span>
               <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-zinc-200 active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
               >
                 <span>Console</span>
                 <ArrowRightIcon className="size-3" />
@@ -82,15 +93,15 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
             <div className="flex items-center gap-3">
               <Link
                 href="/login"
-                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors px-2 py-1"
+                className="text-xs font-medium text-zinc-600 hover:text-zinc-950 transition-colors px-2.5 py-1"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-zinc-200 active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
               >
-                <span>Get Started</span>
+                <span>Sign Up</span>
                 <ArrowRightIcon className="size-3" />
               </Link>
             </div>
@@ -102,7 +113,7 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="p-2 text-zinc-400 hover:text-white"
+            className="p-2 text-zinc-600 hover:text-zinc-950"
             aria-label="Toggle navigation menu"
           >
             {mobileOpen ? (
@@ -119,52 +130,31 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="md:hidden border-b border-zinc-900 bg-zinc-950/95 backdrop-blur-2xl px-6 py-6 space-y-4"
+          className="md:hidden border-b border-zinc-200 bg-white/95 backdrop-blur-2xl px-6 py-6 space-y-4 shadow-xl"
         >
           <div className="flex flex-col space-y-3 text-sm">
-            <button
-              type="button"
-              onClick={() => {
-                setMobileOpen(false);
-                document
-                  .getElementById("engine")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="text-left text-zinc-300 hover:text-white py-1"
-            >
-              Engine
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMobileOpen(false);
-                document
-                  .getElementById("pillars")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="text-left text-zinc-300 hover:text-white py-1"
-            >
-              Pillars
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMobileOpen(false);
-                document
-                  .getElementById("metrics")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="text-left text-zinc-300 hover:text-white py-1"
-            >
-              Metrics
-            </button>
+            {["engine", "analytics", "pillars", "features", "workflow", "faq"].map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => {
+                  setMobileOpen(false);
+                  document
+                    .getElementById(sec)
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="text-left capitalize text-zinc-700 hover:text-indigo-600 py-1 font-medium"
+              >
+                {sec === "pillars" ? "Reliability" : sec}
+              </button>
+            ))}
           </div>
 
-          <div className="pt-4 border-t border-zinc-900 flex flex-col gap-2">
+          <div className="pt-4 border-t border-zinc-100 flex flex-col gap-2">
             {user ? (
               <Link
                 href="/dashboard"
-                className="flex items-center justify-center gap-2 rounded-full bg-white py-2.5 text-xs font-semibold text-zinc-950"
+                className="flex items-center justify-center gap-2 rounded-full bg-indigo-600 py-2.5 text-xs font-semibold text-white"
               >
                 <span>Open Console</span>
                 <ArrowRightIcon className="size-3.5" />
@@ -173,15 +163,15 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
               <>
                 <Link
                   href="/login"
-                  className="flex items-center justify-center rounded-full border border-zinc-800 py-2.5 text-xs font-semibold text-zinc-300"
+                  className="flex items-center justify-center rounded-full border border-zinc-200 py-2.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="flex items-center justify-center gap-1.5 rounded-full bg-white py-2.5 text-xs font-semibold text-zinc-950"
+                  className="flex items-center justify-center gap-1.5 rounded-full bg-indigo-600 py-2.5 text-xs font-semibold text-white shadow-sm shadow-indigo-600/20"
                 >
-                  <span>Get Started</span>
+                  <span>Sign Up</span>
                   <ArrowRightIcon className="size-3.5" />
                 </Link>
               </>

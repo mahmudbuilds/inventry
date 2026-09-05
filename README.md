@@ -84,6 +84,19 @@ Inventry enforces **strict multi-tenancy** at the database query level, ensuring
 - **Advanced Data Tables:** Powered by `@tanstack/react-table` with column sorting, live filtering, column visibility toggles, and `@dnd-kit` drag-and-drop row management.
 - **Silent JWT Refreshing:** Client-side interceptor handles automatic token rotation in the background without session interruption.
 
+### 🎨 Scroll-Driven Landing Experience
+- **Crisp Light Theme Architecture:** High-contrast, modern visual hierarchy featuring subtle dot-matrix patterns, ambient glow backdrops, and the official Inventry brand mark.
+- **Interactive Stock Simulator:** Live interactive engine allowing prospective users to simulate receiving inbound shipments (`+32 Units`) and dispatching outbound orders (`-16 Units`) with instant reorder point warnings and live ledger updates.
+- **Persistent Sticky Principles Showcase ("Built for Total Reliability & Accuracy"):**
+  - **Pinned Navigation:** A persistent sticky left sidebar stays locked to the viewport throughout the entire scroll lifecycle of all three operational pillars (*Accuracy & Order Locking*, *Smart Forecasting*, and *Organization Security*).
+  - **Continuous Progress Tracking:** Smooth spring-damped progress bar on the left edge tracks exact reading depth through the pillars.
+  - **Active Focus Spotlight:** As each card scrolls into the focal viewport band, it highlights with an active focus badge, subtle border ring, elevated shadow, and smooth multi-layer image parallax.
+  - **Live Verification Matrix:** Dynamic guarantee dashboard inside the sticky sidebar updates in real time to match the active pillar (Row-Level Atomic Locking, Real-time Alert Dispatch, Multi-tenant Isolation).
+  - **Quick Jump Anchors:** Direct navigation buttons with navbar-aware offsets for smooth instant scrolling to any pillar.
+- **Core Features Bento Grid:** Highlights atomic locking, predictive reorder warnings, supplier directory linking, complete movement history, and strict multi-tenancy.
+- **3-Step Operational Workflow:** Interactive step-by-step visual guide illustrating company setup, inventory cataloging, and dispatch logging.
+- **Verified Operations FAQ:** Accordion-driven answers addressing common logistics questions (concurrency handling, offline stocktaking, multi-warehouse migration, and role gating).
+
 ---
 
 ## 🏗️ System Architecture
@@ -216,7 +229,20 @@ inventry/
 │   │   │   ├── signup/               # Organization registration page
 │   │   │   ├── globals.css           # Tailwind CSS v4 stylesheets
 │   │   │   └── layout.tsx            # Root application layout
+│   │   ├── assets/                   # Static landing visuals, logos, and illustrations
 │   │   ├── components/               # React UI components
+│   │   │   ├── landing/              # Scroll-driven light theme landing page
+│   │   │   │   ├── landing-page.tsx  # Master landing page assembler
+│   │   │   │   ├── minimal-navbar.tsx # Light navbar with official brand logo
+│   │   │   │   ├── minimal-hero.tsx  # Hero section with live stock preview
+│   │   │   │   ├── scroll-canvas.tsx # Interactive live stock simulator
+│   │   │   │   ├── minimal-metrics.tsx # Performance & accuracy stat cards
+│   │   │   │   ├── network-showcase.tsx # Business analytics & stock intelligence
+│   │   │   │   ├── sticky-pillars.tsx # Scroll-driven reliability & precision showcase
+│   │   │   │   ├── features-bento.tsx # Core feature bento grid
+│   │   │   │   ├── workflow-steps.tsx # 3-step operational workflow
+│   │   │   │   ├── faq-section.tsx   # Verified inventory Q&A
+│   │   │   │   └── minimal-closing.tsx # Call-to-action & footer
 │   │   │   ├── ui/                   # shadcn / Base UI primitives
 │   │   │   ├── app-sidebar.tsx       # Collapsible application navigation sidebar
 │   │   │   ├── chart-area-interactive.tsx # 30-day stock flow area chart
@@ -495,11 +521,12 @@ cd inventry_backend
 python manage.py test inventory
 ```
 
-To run frontend linting and type checking:
+To run frontend linting, formatting check, and production build verification:
 
 ```bash
 cd inventry_frontend
-bun run lint
+bun run lint      # Runs Biome code checks
+bun run build     # Runs TypeScript verification and Next.js static page generation
 ```
 
 ---
