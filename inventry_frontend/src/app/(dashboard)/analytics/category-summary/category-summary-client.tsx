@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {useState, useMemo} from "react";
+import { useState, useMemo } from "react";
 
 export interface CategorySummaryItem {
   id: number;

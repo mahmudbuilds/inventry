@@ -69,7 +69,7 @@ export function NavUser({ user }: { user: UserType | null }) {
         "refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       setShowLogoutConfirm(false);
       setIsLoggingOut(false);
-      window.location.href = "/login";
+      window.location.href = "/";
     }
   }
 

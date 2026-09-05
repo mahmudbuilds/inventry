@@ -36,7 +36,7 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/",
+      url: "/dashboard",
       icon: <LayoutDashboardIcon />,
     },
   ],
@@ -85,7 +85,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:p-1.5 py-5!"
-              render={<Link href="/" />}
+              render={<Link href="/dashboard" />}
             >
               <Image src={logo} alt="Inventry Logo" height={26} width={26} />
               <div className="flex flex-col">

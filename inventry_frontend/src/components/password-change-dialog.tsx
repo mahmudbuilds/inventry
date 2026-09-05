@@ -78,14 +78,14 @@ export function PasswordChangeDialog({
             setError(
               Array.isArray(errorData.password)
                 ? errorData.password.join(", ")
-                : errorData.password
+                : errorData.password,
             );
           } else {
             setError(formatApiError(errorData, "Failed to change password"));
           }
         } else {
           setError(
-            `Server error (${response.status}). Please verify that your backend server is running and reachable.`
+            `Server error (${response.status}). Please verify that your backend server is running and reachable.`,
           );
         }
       } else {
@@ -167,7 +167,9 @@ export function PasswordChangeDialog({
                 aria-busy={submitting}
                 className="flex-1"
               >
-                {submitting && <Loader2Icon className="mr-2 size-4 animate-spin" />}
+                {submitting && (
+                  <Loader2Icon className="mr-2 size-4 animate-spin" />
+                )}
                 {submitting ? "Changing..." : "Change Password"}
               </Button>
             </div>

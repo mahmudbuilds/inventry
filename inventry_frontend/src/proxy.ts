@@ -34,23 +34,22 @@ export function middleware(request: NextRequest) {
 
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/signup");
-  const isProtectedRoute = !isAuthPage;
+  const isPublicRoute = pathname === "/" || isAuthPage;
+  const isProtectedRoute = !isPublicRoute;
 
   // 1. If accessing a protected route without valid tokens, redirect to login & clear stale cookies
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL("/login", request.url);
-    if (pathname !== "/") {
-      loginUrl.searchParams.set("from", pathname);
-    }
+    loginUrl.searchParams.set("from", pathname);
     const response = NextResponse.redirect(loginUrl);
     if (accessToken) response.cookies.delete("access_token");
     if (refreshToken) response.cookies.delete("refresh_token");
     return response;
   }
 
-  // 2. If authenticated and accessing login or signup, redirect to dashboard root "/"
+  // 2. If authenticated and accessing login or signup, redirect to dashboard root "/dashboard"
   if (isAuthPage && isAuthenticated) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // 3. Clear stale/expired cookies if present on public routes

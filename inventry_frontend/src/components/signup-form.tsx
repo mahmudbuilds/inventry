@@ -59,18 +59,20 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
           setError(formatApiError(errorData, "Registration failed"));
         } else {
           setError(
-            `Server error (${response.status}). Please verify that your backend server is running and reachable.`
+            `Server error (${response.status}). Please verify that your backend server is running and reachable.`,
           );
         }
       } else {
         if (isJson) {
           await response.json();
         }
-        router.push("/");
+        router.push("/dashboard");
       }
     } catch (err) {
       console.error("Registration error:", err);
-      setError(`Registration failed: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Registration failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setSubmitting(false);
     }

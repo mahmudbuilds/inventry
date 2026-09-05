@@ -18,7 +18,7 @@ export function DashboardLayoutClient({
   children,
 }: DashboardLayoutClientProps) {
   const [showPasswordChange, setShowPasswordChange] = useState(
-    user?.password_change_required || false
+    user?.password_change_required || false,
   );
 
   return (

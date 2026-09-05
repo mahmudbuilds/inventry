@@ -28,9 +28,5 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return (
-    <DashboardLayoutClient user={user}>
-      {children}
-    </DashboardLayoutClient>
-  );
+  return <DashboardLayoutClient user={user}>{children}</DashboardLayoutClient>;
 }

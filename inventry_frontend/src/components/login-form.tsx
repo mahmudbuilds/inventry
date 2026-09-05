@@ -49,7 +49,7 @@ export function LoginForm({
         if (isJson) {
           await response.json();
         }
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
       } else {
         if (isJson) {
@@ -57,13 +57,15 @@ export function LoginForm({
           setError(formatApiError(errorData, "Login failed"));
         } else {
           setError(
-            `Server error (${response.status}). Please verify that your backend server is running and reachable.`
+            `Server error (${response.status}). Please verify that your backend server is running and reachable.`,
           );
         }
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError(`Login failed: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        `Login failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setSubmitting(false);
     }
