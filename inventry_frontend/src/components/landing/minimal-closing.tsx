@@ -26,7 +26,7 @@ export function MinimalClosing() {
           transition={{ duration: 0.6 }}
           className="text-3xl sm:text-5xl font-bold tracking-tight text-zinc-950 leading-tight"
         >
-          Ready for atomic inventory control?
+          Ready for simple, reliable inventory control?
         </motion.h2>
 
         <motion.p
@@ -36,7 +36,7 @@ export function MinimalClosing() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-base sm:text-lg text-zinc-600 max-w-xl mx-auto leading-relaxed"
         >
-          Set up your organization in minutes, invite warehouse operators, and keep your inventory accurate across every channel with zero stress.
+          Set up your organization in minutes, invite your team, and keep your inventory accurate across every channel with zero stress.
         </motion.p>
 
         <motion.div
@@ -57,7 +57,7 @@ export function MinimalClosing() {
             href="/login"
             className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-medium text-zinc-800 shadow-xs hover:border-zinc-400 hover:bg-zinc-50 transition"
           >
-            <span>Sign In to Console</span>
+            <span>Sign In to Dashboard</span>
           </Link>
         </motion.div>
       </div>

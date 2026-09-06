@@ -7,7 +7,7 @@ import { useState } from "react";
 const FAQS = [
   {
     q: "How does Inventry prevent negative stock and overselling?",
-    a: "When you log a Stock Out movement, Inventry checks current inventory inside an atomic database transaction with row-level locking. If the requested quantity exceeds what is available, the movement is immediately rejected, guaranteeing your stock balance never drops below zero.",
+    a: "When you record a stock dispatch, Inventry checks available quantity immediately. If someone requests more items than you have in stock, the action is automatically prevented, ensuring your inventory balance never drops below zero.",
   },
   {
     q: "How do low-stock alerts work?",
@@ -27,7 +27,7 @@ const FAQS = [
   },
   {
     q: "How is our company's data kept secure and private?",
-    a: "Inventry enforces strict multi-tenancy at the database query level. All products, suppliers, categories, and movements are scoped strictly to your organization. Authentication is handled using secure, HTTP-only SameSite cookies.",
+    a: "Every company has its own private, isolated workspace. Your products, suppliers, and records are never visible or accessible to other companies. All accounts are protected with modern industry-standard encryption.",
   },
 ];
 

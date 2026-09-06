@@ -107,7 +107,7 @@ export function NetworkShowcase() {
               <span className="flex size-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>Live Reporting Suite</span>
               <span className="text-zinc-300">|</span>
-              <span className="text-zinc-500">Real-Time Database Aggregations</span>
+              <span className="text-zinc-500">Instant Activity Insights</span>
             </div>
             <div className="flex items-center gap-4 text-xs text-emerald-700 font-semibold">
               <span>● 100% In-App Transparency</span>

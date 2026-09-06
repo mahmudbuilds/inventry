@@ -39,7 +39,7 @@ const STEPS = [
       "Record stock arrivals (purchases/restocks) and stock dispatches (sales). The system validates available inventory and logs who made each change with a full timestamp.",
     icon: RefreshCwIcon,
     features: [
-      "Atomic stock validation blocks negative inventory balances",
+      "Automatic stock checks prevent overselling and negative inventory",
       "User attribution logs exactly which team member recorded each movement",
       "Optional movement notes capture batch details or shipment context",
     ],

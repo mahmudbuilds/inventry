@@ -85,7 +85,7 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
                 href="/dashboard"
                 className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700 active:scale-[0.98]"
               >
-                <span>Console</span>
+                <span>Dashboard</span>
                 <ArrowRightIcon className="size-3" />
               </Link>
             </div>
@@ -156,7 +156,7 @@ export function MinimalNavbar({ user }: MinimalNavbarProps) {
                 href="/dashboard"
                 className="flex items-center justify-center gap-2 rounded-full bg-indigo-600 py-2.5 text-xs font-semibold text-white"
               >
-                <span>Open Console</span>
+                <span>Open Dashboard</span>
                 <ArrowRightIcon className="size-3.5" />
               </Link>
             ) : (
