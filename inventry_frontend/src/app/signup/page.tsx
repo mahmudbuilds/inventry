@@ -1,11 +1,16 @@
+import type { Metadata } from "next";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { SignupForm } from "@/components/signup-form";
 
-export default function Page() {
+export const metadata: Metadata = {
+  title: "Create Company — Inventry",
+  description: "Create your organization account and configure superuser access for Inventry.",
+};
+
+export default function SignupPage() {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <SignupForm />
-      </div>
-    </div>
+    <AuthLayout maxWidthClass="max-w-lg">
+      <SignupForm />
+    </AuthLayout>
   );
 }
