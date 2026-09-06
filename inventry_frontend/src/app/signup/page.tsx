@@ -4,7 +4,7 @@ import { SignupForm } from "@/components/signup-form";
 
 export const metadata: Metadata = {
   title: "Create Company — Inventry",
-  description: "Create your organization account and configure superuser access for Inventry.",
+  description: "Create your company account to start tracking stock, products, and orders effortlessly.",
 };
 
 export default function SignupPage() {

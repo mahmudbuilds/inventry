@@ -4,7 +4,7 @@ import { LoginForm } from "@/components/login-form";
 
 export const metadata: Metadata = {
   title: "Sign In — Inventry",
-  description: "Sign in to your Inventry account to access warehouse telemetry and inventory operations.",
+  description: "Sign in to your Inventry account to manage your stock, products, and orders.",
 };
 
 export default function LoginPage() {
