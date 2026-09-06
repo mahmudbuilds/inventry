@@ -1,11 +1,16 @@
+import type { Metadata } from "next";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { LoginForm } from "@/components/login-form";
 
-export default function Page() {
+export const metadata: Metadata = {
+  title: "Sign In — Inventry",
+  description: "Sign in to your Inventry account to access warehouse telemetry and inventory operations.",
+};
+
+export default function LoginPage() {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <LoginForm />
-      </div>
-    </div>
+    <AuthLayout maxWidthClass="max-w-md">
+      <LoginForm />
+    </AuthLayout>
   );
 }
