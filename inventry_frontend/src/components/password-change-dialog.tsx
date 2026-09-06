@@ -85,7 +85,7 @@ export function PasswordChangeDialog({
           }
         } else {
           setError(
-            `Server error (${response.status}). Please verify that your backend server is running and reachable.`,
+            "Unable to connect to the service. Please check your internet connection and try again.",
           );
         }
       } else {
